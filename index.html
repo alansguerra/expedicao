@@ -42,7 +42,8 @@
     gap: 14px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); background: var(--cor-loja); color: #fff;
     box-shadow: 0 -4px 16px rgba(0,0,0,.4); }
   .rodape .mk { font-size: 40px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
-  .rodape img { height: 56px; max-width: 130px; object-fit: contain; background: #fff; border-radius: 12px; padding: 6px; }
+  .rodape { min-height: 92px; }
+  .rodape img { height: 64px; max-width: 70%; object-fit: contain; background: #fff; border-radius: 12px; padding: 8px 14px; }
   .contador { text-align: center; padding: 10px 0 4px; }
   .contador .n { font-size: 44px; font-weight: 800; line-height: 1; }
   .contador .t { color: var(--sub); font-size: 13px; }
@@ -288,12 +289,15 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     return (l && l.cor) || '#3b82f6';
   }
   /* Logo do canal, procurado na pasta logos do repositório, nesta ordem:
-     1) logos/<loja>-<canal>.png  (ex.: logos/turpial-balcao.png, só para aquela loja)
+     1) logos/<loja>-<canal>.png  (logo específico de uma loja para um canal)
      2) logos/<canal>.png         (ex.: logos/meli.png, vale para as duas lojas)
-     Sem arquivo, aparece só o nome do canal. */
+     3) só no Balcão: logos/<loja>.png (ex.: logos/turpial.png — o balcão é a própria loja)
+     Achou o logo: aparece só o logo. Não achou: aparece o nome do canal escrito. */
   function slug(t) { return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
   function arquivosLogo(loja, canal) {
-    return ['logos/' + slug(loja) + '-' + slug(canal) + '.png', 'logos/' + slug(canal) + '.png'];
+    var lista = ['logos/' + slug(loja) + '-' + slug(canal) + '.png', 'logos/' + slug(canal) + '.png'];
+    if (slug(canal) === 'balcao') lista.push('logos/' + slug(loja) + '.png');
+    return lista;
   }
 
   /* ---------- sons e vibração ---------- */
@@ -444,10 +448,13 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     $('leitura').style.setProperty('--cor-loja', corLoja(st.loja));
     $('rMk').textContent = st.canal;
     var logo = $('rLogo'), opcoes = arquivosLogo(st.loja, st.canal), tentativa = 0;
-    logo.style.display = '';
+    logo.style.display = 'none';
+    $('rMk').style.display = 'none';
+    logo.onload = function () { this.style.display = ''; $('rMk').style.display = 'none'; };
     logo.onerror = function () {
       tentativa++;
-      if (tentativa < opcoes.length) this.src = opcoes[tentativa]; else this.style.display = 'none';
+      if (tentativa < opcoes.length) this.src = opcoes[tentativa];
+      else { this.style.display = 'none'; $('rMk').style.display = ''; }
     };
     logo.src = opcoes[0];
     $('nHoje').textContent = '–';
