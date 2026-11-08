@@ -617,6 +617,9 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     pararCamera();
     salvar('operador', st.operador);
     mostrar('telaFech');
+    // Mostra na hora o último fechamento guardado no celular (se for de hoje); a planilha atualiza em seguida.
+    if (!fech) { try { var c = JSON.parse(ler('fech', 'null')); if (c && c.data === hojeLocal()) fech = c; } catch (e) {} }
+    if (fech) desenharFechamento();
     carregarFechamento();
   }
 
@@ -625,6 +628,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     api('fechamento').then(function (r) {
       if (!r.ok) { $('fAtual').textContent = r.erro || 'Erro ao carregar.'; return; }
       fech = r; desenharFechamento();
+      $('fAtual').textContent = 'Atualizado às ' + hhmm(agoraMin());
     }).catch(function (e) { if (String(e.message) !== 'PIN') $('fAtual').textContent = 'Sem conexão. Toque em Atualizar.'; });
   }
 
@@ -761,7 +765,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   function desenharFechamento() {
     if (!fech) return;
     $('fData').textContent = 'Fechamento · ' + fech.data;
-    $('fAtual').textContent = 'Atualizado às ' + hhmm(agoraMin());
+    salvar('fech', JSON.stringify(fech));
     st.codigos = fech.codigos || {}; st.codigosData = fech.data;
     salvar('codigos', JSON.stringify({ data: fech.data, codigos: st.codigos }));
     desenharCodigos($('fechCodigos'), fech.lojas, true);
