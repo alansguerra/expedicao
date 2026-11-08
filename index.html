@@ -121,7 +121,48 @@
   .full-campos label { font-size: 12px; color: var(--sub); }
   .full-campos input { padding: 8px 10px; font-size: 16px; margin-top: 2px; }
   .vazio { margin: 0 12px 10px; color: var(--sub); font-size: 14px; }
-  .btn.mini { width: auto; margin: 0 12px 10px; padding: 10px 14px; font-size: 14px; }
+
+  /* Códigos do dia (ML) */
+  .cods { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #fechCodigos { margin: 10px 12px 0; }
+  .cod { border-radius: 12px; background: var(--card); border: 1px solid var(--borda); border-top: 5px solid var(--cor, var(--acento)); padding: 8px 10px; min-width: 0; }
+  .cod small { display: block; font-size: 12px; font-weight: 800; color: var(--cor, var(--sub)); text-transform: uppercase; letter-spacing: .04em; }
+  .cod .valor { font: 800 22px/1.2 ui-monospace, monospace; letter-spacing: .04em; margin: 4px 0 6px; word-break: break-all; min-height: 26px; }
+  .cod .valor.vazio-cod { color: var(--sub); font: 500 13px/1.3 system-ui, sans-serif; margin: 6px 0 8px; }
+  .cod input { padding: 8px; font: 700 18px ui-monospace, monospace; margin: 4px 0 6px; }
+  .cod .btn.sec { width: 100%; margin: 0; padding: 9px; font-size: 14px; }
+  .cod .btn.sec.copiado { background: #123b25; border-color: var(--ok); color: #8be0ad; }
+
+  /* Fechamento por canal, lojas lado a lado */
+  .canal-tit { display: flex; align-items: baseline; gap: 8px; margin: 18px 12px 8px; }
+  .canal-tit b { font-size: 18px; }
+  .canal-tit span { flex: 1; text-align: right; font-size: 13px; color: var(--sub); }
+  .canal-tit span b { font-size: 15px; color: var(--txt); }
+  .par { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 12px; }
+  .mini { border-radius: 12px; background: var(--card); border: 1px solid var(--borda); overflow: hidden; min-width: 0; }
+  .mini.st-ok { box-shadow: inset 0 0 0 2px var(--ok); }
+  .mini.st-falta { box-shadow: inset 0 0 0 2px var(--erro); }
+  .mini.st-sobra { box-shadow: inset 0 0 0 2px var(--pend); }
+  .mini.st-zero { opacity: .6; }
+  .mini .faixa { background: var(--cor); color: #fff; padding: 5px 8px; font-size: 12px; font-weight: 800; text-transform: uppercase;
+    display: flex; justify-content: space-between; gap: 4px; }
+  .mini .corpo { padding: 8px; }
+  .mini .st { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .mini .nums { display: flex; gap: 6px; }
+  .mini .nums > div { flex: 1; background: var(--bg); border-radius: 8px; padding: 4px 6px; min-width: 0; }
+  .mini .nums small { display: block; color: var(--sub); font-size: 11px; }
+  .mini .nums .big { font-size: 24px; font-weight: 800; }
+  .mini .nums input { padding: 0; border: 0; background: transparent; font-size: 24px; font-weight: 800; width: 100%; }
+  .mini .hora-dia { margin-top: 6px; font-size: 12px; color: var(--sub); }
+  .mini .hora-dia input { padding: 6px; font-size: 15px; margin-top: 2px; }
+  .mini .horas { margin-top: 6px; font-size: 12px; color: var(--sub); line-height: 1.4; }
+  .mini .horas b { color: var(--txt); }
+  .mini .horas .cd.atraso { color: #ff7b7b; font-weight: 700; }
+  .mini .horas .cd.perto { color: #ffd66b; font-weight: 700; }
+  .mini .togs { gap: 5px; margin-top: 8px; }
+  .mini .tog { padding: 7px 8px; font-size: 12px; }
+  .mini.ausente { display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 13px; padding: 12px; }
+  .btn.addfull { width: auto; margin: 0 12px 10px; padding: 10px 14px; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -136,6 +177,7 @@
 
 <section id="telaSetup" class="tela">
   <h1>Expedição</h1>
+  <div id="codigosInicio"></div>
   <h2>Quem está bipando</h2>
   <div class="grade" id="gOperador"></div>
   <h2>Loja</h2>
@@ -153,6 +195,7 @@
     <button class="btn sec" id="btnFechAtualizar">Atualizar</button>
     <button class="btn sec" id="btnFechVoltar">Voltar</button>
   </div>
+  <div id="fechCodigos"></div>
   <div class="exped" id="exped"></div>
   <div id="fechCorpo"></div>
 </section>
@@ -204,7 +247,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     pin: ler('pin', ''),
     aparelho: ler('aparelho', '') || (function () { var id = 'cel-' + Math.random().toString(36).slice(2, 8); salvar('aparelho', id); return id; })(),
     operador: ler('operador', ''), loja: ler('loja', ''), canal: ler('canal', ''),
-    setup: null,
+    setup: null, codigos: {}, codigosData: '',
     fila: (function () { try { return JSON.parse(ler('fila', '[]')); } catch (e) { return []; } })(),
     itens: [], travado: false, ultimoRaw: '', ultimoEm: 0, pausaAte: 0,
     stream: null, detector: null, wake: null
@@ -241,10 +284,17 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   function carregarSetup() {
     if (!st.pin) { pedirPin(''); return; }
     mostrar('telaSetup');
-    $('avisoSetup').textContent = 'Carregando…';
+    // Mostra na hora o que o celular já guardou; a planilha atualiza em seguida.
+    if (!st.setup) { try { st.setup = JSON.parse(ler('setup', 'null')); } catch (e) { st.setup = null; } }
+    if (st.setup) { montarSetup(); desenharCodigos($('codigosInicio'), st.setup.lojas, false); }
+    $('avisoSetup').textContent = st.setup ? 'Atualizando…' : 'Carregando…';
     api('setup').then(function (r) {
       if (!r.ok) { $('avisoSetup').textContent = r.erro || 'Erro ao carregar.'; return; }
-      st.setup = r; montarSetup();
+      st.setup = r;
+      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores }));
+      if (r.codigos) { st.codigos = r.codigos; st.codigosData = r.data; salvar('codigos', JSON.stringify({ data: r.data, codigos: r.codigos })); }
+      montarSetup();
+      desenharCodigos($('codigosInicio'), r.lojas, false);
     }).catch(function (e) {
       if (String(e.message) !== 'PIN') $('avisoSetup').textContent = 'Sem conexão com a planilha. Tente de novo. (' + e.message + ')';
     });
@@ -497,6 +547,62 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     }).catch(function () { alert('Sem conexão. Tente de novo.'); });
   };
 
+  /* ================= Códigos do dia (Mercado Livre) ================= */
+  function hojeLocal() {
+    var d = new Date();
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+  }
+  (function () { // códigos guardados no celular aparecem na hora, antes da resposta da planilha
+    try { var c = JSON.parse(ler('codigos', '{}')); if (c.data === hojeLocal()) { st.codigos = c.codigos || {}; st.codigosData = c.data; } } catch (e) {}
+  })();
+
+  function copiar(texto, botao) {
+    function ok() { botao.textContent = '✓ Copiado'; botao.classList.add('copiado'); setTimeout(function () { botao.textContent = 'Copiar'; botao.classList.remove('copiado'); }, 1500); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto).then(ok, function () { copiaAntiga(texto); ok(); });
+    else { copiaAntiga(texto); ok(); }
+  }
+  function copiaAntiga(texto) {
+    var t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(t);
+  }
+
+  /** Um quadro por loja com o código do dia. editavel=true (fechamento) mostra o campo para digitar. */
+  function desenharCodigos(box, lojas, editavel) {
+    box.innerHTML = '';
+    if (!lojas || !lojas.length) return;
+    var h = el('h2', null, 'Códigos do dia · Mercado Livre');
+    if (editavel) h.style.margin = '6px 0 8px';
+    box.appendChild(h);
+    var grade = el('div', 'cods');
+    var codigos = (st.codigosData === hojeLocal() && st.codigos) || {};
+    lojas.forEach(function (l) {
+      var q = el('div', 'cod'); q.style.setProperty('--cor', l.cor || '#3b82f6');
+      q.appendChild(el('small', null, l.nome));
+      var valor = codigos[l.codigo] || '';
+      if (editavel) {
+        var i = el('input'); i.value = valor; i.placeholder = 'digite o código'; i.autocomplete = 'off'; i.autocapitalize = 'characters';
+        i.onchange = function () {
+          var v = this.value.trim();
+          st.codigos[l.codigo] = v; st.codigosData = hojeLocal();
+          salvar('codigos', JSON.stringify({ data: st.codigosData, codigos: st.codigos }));
+          api('salvarCodigo', { loja: l.codigo, codigo: v }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
+            .catch(function () { alert('Sem conexão: o código não foi salvo na planilha. Tente de novo.'); });
+        };
+        q.appendChild(i);
+      } else {
+        q.appendChild(el('div', 'valor' + (valor ? '' : ' vazio-cod'), valor || 'Ainda não informado. Preencha no Fechamento.'));
+      }
+      var b = el('button', 'btn sec', 'Copiar');
+      b.onclick = function () {
+        var v = editavel ? q.querySelector('input').value.trim() : (st.codigos[l.codigo] || '');
+        if (v) copiar(v, b);
+      };
+      if (editavel || valor) q.appendChild(b);
+      grade.appendChild(q);
+    });
+    box.appendChild(grade);
+  }
+
   /* ================= Fechamento do dia ================= */
   var fech = null;
 
@@ -602,72 +708,101 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (outros.length) box.appendChild(el('div', 'outros', outros.join(' · ')));
   }
 
+  function cartaoCanal(loja, c, temMeli) {
+    var s = statusCanal(c);
+    var card = el('div', 'mini ' + s.cls);
+    card.style.setProperty('--cor', loja.cor || '#3b82f6');
+    var faixa = el('div', 'faixa');
+    faixa.appendChild(el('span', null, loja.nome));
+    faixa.appendChild(el('span', null, c.tipoEnvio));
+    card.appendChild(faixa);
+    var corpo = el('div', 'corpo');
+    corpo.appendChild(el('div', 'st', s.txt));
+
+    var nums = el('div', 'nums');
+    var d1 = el('div'); d1.appendChild(el('small', null, 'Bipados')); d1.appendChild(el('div', 'big', String(c.bipados)));
+    var d2 = el('div'); d2.appendChild(el('small', null, 'A enviar'));
+    var inp = el('input'); inp.type = 'number'; inp.inputMode = 'numeric'; inp.min = '0'; inp.placeholder = '–'; inp.value = c.aEnviar;
+    inp.onchange = function () { c.aEnviar = this.value.trim(); salvarCanal(loja, c); };
+    d2.appendChild(inp);
+    nums.appendChild(d1); nums.appendChild(d2); corpo.appendChild(nums);
+
+    var diario = ehDiario(c.coletaMax) || ehDiario(c.corte);
+    if (diario && (ehMeli(c.canal) || !temMeli)) {
+      var hd = el('div', 'hora-dia', 'Coleta máx. hoje');
+      var t = el('input'); t.type = 'time'; t.value = c.coletaMaxDia || '';
+      t.onchange = function () { c.coletaMaxDia = this.value; salvarCanal(loja, c); };
+      hd.appendChild(t); corpo.appendChild(hd);
+    }
+
+    var h = horariosDoCanal(loja, c);
+    var horas = el('div', 'horas');
+    if (h.corte || h.coleta) {
+      horas.appendChild(document.createTextNode('Corte ')); horas.appendChild(el('b', null, h.corte || '–'));
+      horas.appendChild(document.createTextNode(' · Coleta ')); horas.appendChild(el('b', null, h.coleta || '–'));
+      var semAlerta = c.coletado || s.cls === 'st-zero';
+      var cd = contagemRegressiva(semAlerta ? '' : (agoraMin() <= emMin(h.corte) ? h.corte : h.coleta), false);
+      if (cd && cd.txt) { horas.appendChild(el('br')); horas.appendChild(el('span', 'cd ' + cd.cls, cd.txt)); }
+    } else if (diario) {
+      horas.textContent = 'Informe a coleta máx. do Meli.';
+    }
+    corpo.appendChild(horas);
+
+    var togs = el('div', 'togs');
+    togs.appendChild(toggle('Gaiola', c.gaiola, function (v) { c.gaiola = v; salvarCanal(loja, c); }));
+    if (/postagem/i.test(c.tipoEnvio)) togs.appendChild(toggle('Veículo', c.veiculo, function (v) { c.veiculo = v; salvarCanal(loja, c); }));
+    togs.appendChild(toggle(/postagem/i.test(c.tipoEnvio) ? 'Postado' : 'Coletado', c.coletado, function (v) { c.coletado = v; salvarCanal(loja, c); }));
+    togs.appendChild(toggle('A caminho', c.aCaminho, function (v) { c.aCaminho = v; salvarCanal(loja, c); }));
+    corpo.appendChild(togs);
+    card.appendChild(corpo);
+    return card;
+  }
+
   function desenharFechamento() {
     if (!fech) return;
     $('fData').textContent = 'Fechamento · ' + fech.data;
     $('fAtual').textContent = 'Atualizado às ' + hhmm(agoraMin());
+    st.codigos = fech.codigos || {}; st.codigosData = fech.data;
+    salvar('codigos', JSON.stringify({ data: fech.data, codigos: st.codigos }));
+    desenharCodigos($('fechCodigos'), fech.lojas, true);
     desenharExpediente();
     var corpo = $('fechCorpo'); corpo.innerHTML = '';
 
-    fech.lojas.forEach(function (loja) {
-      var tit = el('div', 'loja-tit', loja.nome);
-      tit.style.color = loja.cor || '';
-      tit.style.fontWeight = '800';
-      corpo.appendChild(tit);
-      var temMeli = loja.canais.some(function (x) { return ehMeli(x.canal); });
+    // Canais na ordem em que aparecem, juntando as lojas
+    var nomesCanais = [];
+    fech.lojas.forEach(function (l) { l.canais.forEach(function (c) { if (nomesCanais.indexOf(c.canal) < 0) nomesCanais.push(c.canal); }); });
 
-      loja.canais.forEach(function (c) {
-        var s = statusCanal(c);
-        var card = el('div', 'card ' + s.cls);
-        var cab = el('div', 'cab');
-        cab.appendChild(el('b', null, c.canal));
-        cab.appendChild(el('span', 'tipo', c.tipoEnvio));
-        cab.appendChild(el('span', 'st', s.txt));
-        card.appendChild(cab);
-
-        var nums = el('div', 'nums');
-        var d1 = el('div'); d1.appendChild(el('small', null, 'Bipados')); d1.appendChild(el('div', 'big', String(c.bipados)));
-        var d2 = el('div'); d2.appendChild(el('small', null, 'A enviar (marketplace)'));
-        var inp = el('input'); inp.type = 'number'; inp.inputMode = 'numeric'; inp.min = '0'; inp.placeholder = '–'; inp.value = c.aEnviar;
-        inp.onchange = function () { c.aEnviar = this.value.trim(); salvarCanal(loja, c); };
-        d2.appendChild(inp);
-        nums.appendChild(d1); nums.appendChild(d2); card.appendChild(nums);
-
-        var diario = ehDiario(c.coletaMax) || ehDiario(c.corte);
-        if (diario && (ehMeli(c.canal) || !temMeli)) {
-          var hd = el('div', 'hora-dia');
-          hd.appendChild(el('span', null, 'Coleta máx. hoje'));
-          var t = el('input'); t.type = 'time'; t.value = c.coletaMaxDia || '';
-          t.onchange = function () { c.coletaMaxDia = this.value; salvarCanal(loja, c); };
-          hd.appendChild(t); card.appendChild(hd);
-        }
-
-        var h = horariosDoCanal(loja, c);
-        var horas = el('div', 'horas');
-        if (h.corte || h.coleta) {
-          var concluido = s.cls === 'st-ok' || s.cls === 'st-zero';
-          horas.appendChild(document.createTextNode('Corte '));
-          horas.appendChild(el('b', null, h.corte || '–'));
-          horas.appendChild(document.createTextNode(' · Coleta até '));
-          horas.appendChild(el('b', null, h.coleta || '–'));
-          var semAlerta = c.coletado || s.cls === 'st-zero';
-          var cd = contagemRegressiva(semAlerta ? '' : (agoraMin() <= emMin(h.corte) ? h.corte : h.coleta), concluido && c.coletado);
-          if (cd && cd.txt) { horas.appendChild(document.createTextNode(' · ')); horas.appendChild(el('span', 'cd ' + cd.cls, cd.txt)); }
-        } else if (diario) {
-          horas.textContent = 'Informe a coleta máxima do Meli para calcular o corte.';
-        }
-        card.appendChild(horas);
-
-        var togs = el('div', 'togs');
-        togs.appendChild(toggle('Gaiola', c.gaiola, function (v) { c.gaiola = v; salvarCanal(loja, c); }));
-        if (/postagem/i.test(c.tipoEnvio)) togs.appendChild(toggle('Veículo', c.veiculo, function (v) { c.veiculo = v; salvarCanal(loja, c); }));
-        togs.appendChild(toggle(/postagem/i.test(c.tipoEnvio) ? 'Postado' : 'Coletado', c.coletado, function (v) { c.coletado = v; salvarCanal(loja, c); }));
-        togs.appendChild(toggle('A caminho', c.aCaminho, function (v) { c.aCaminho = v; salvarCanal(loja, c); }));
-        card.appendChild(togs);
-        corpo.appendChild(card);
+    nomesCanais.forEach(function (nomeCanal) {
+      var bip = 0, env = 0, temEnv = false;
+      fech.lojas.forEach(function (l) {
+        var c = l.canais.filter(function (x) { return x.canal === nomeCanal; })[0];
+        if (!c) return;
+        bip += c.bipados;
+        if (String(c.aEnviar) !== '') { env += Number(c.aEnviar); temEnv = true; }
       });
+      var tit = el('div', 'canal-tit');
+      tit.appendChild(el('b', null, nomeCanal));
+      var soma = el('span');
+      soma.appendChild(document.createTextNode('Total: '));
+      soma.appendChild(el('b', null, String(bip)));
+      soma.appendChild(document.createTextNode(' bipados' + (temEnv ? ' de ' + env : '')));
+      tit.appendChild(soma);
+      corpo.appendChild(tit);
 
-      corpo.appendChild(el('div', 'loja-tit', loja.nome + ' · Full ⚡'));
+      var par = el('div', 'par');
+      fech.lojas.forEach(function (loja) {
+        var c = loja.canais.filter(function (x) { return x.canal === nomeCanal; })[0];
+        var temMeli = loja.canais.some(function (x) { return ehMeli(x.canal); });
+        if (c) par.appendChild(cartaoCanal(loja, c, temMeli));
+        else par.appendChild(el('div', 'mini ausente', loja.nome + ': sem ' + nomeCanal));
+      });
+      corpo.appendChild(par);
+    });
+
+    fech.lojas.forEach(function (loja) {
+      var titF = el('div', 'loja-tit', loja.nome + ' · Full ⚡');
+      titF.style.color = loja.cor || '';
+      corpo.appendChild(titF);
       if (fech.fullErro) corpo.appendChild(el('div', 'vazio', fech.fullErro));
       if (!loja.full.length) corpo.appendChild(el('div', 'vazio', 'Sem coleta Full hoje.'));
       loja.full.forEach(function (f) {
@@ -692,7 +827,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
         card.appendChild(togs);
         corpo.appendChild(card);
       });
-      var add = el('button', 'btn sec mini', '+ Envio Full manual');
+      var add = el('button', 'btn sec addfull', '+ Envio Full manual');
       add.onclick = function () {
         var n = (prompt('Número do envio Full:') || '').trim();
         if (!n) return;
