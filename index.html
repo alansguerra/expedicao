@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f1115">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Expedição</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #1a1d24; --borda: #2a2f3a; --txt: #eef1f6; --sub: #9aa3b2;
+    --ok: #1f9d55; --erro: #d93636; --pend: #c98a00; --acento: #3b82f6;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--txt);
+    font: 16px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .tela { display: none; padding: 16px; max-width: 560px; margin: 0 auto; }
+  .tela.ativa { display: block; }
+  h1 { font-size: 20px; margin: 4px 0 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); margin: 20px 0 8px; }
+  .grade { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .op { padding: 18px 12px; border-radius: 12px; border: 2px solid var(--borda); background: var(--card);
+    color: var(--txt); font-size: 17px; font-weight: 600; text-align: center; }
+  .op.sel { border-color: var(--acento); background: #1c2a44; }
+  .btn { width: 100%; padding: 18px; border: 0; border-radius: 12px; font-size: 18px; font-weight: 700;
+    background: var(--acento); color: #fff; margin-top: 24px; }
+  .btn:disabled { opacity: .4; }
+  .btn.sec { background: var(--card); border: 1px solid var(--borda); color: var(--txt); font-size: 15px; padding: 12px; margin-top: 0; }
+  input { width: 100%; padding: 14px; font-size: 18px; border-radius: 10px; border: 1px solid var(--borda);
+    background: var(--card); color: var(--txt); }
+  .aviso { color: var(--sub); font-size: 14px; margin-top: 10px; }
+
+  #leitura { padding: 0; }
+  .topo { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); border-bottom: 1px solid var(--borda); }
+  .topo .info { flex: 1; min-width: 0; }
+  .topo .info b { display: block; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topo .info span { color: var(--sub); font-size: 13px; }
+  .topo .btn.sec { width: auto; }
+  .contador { text-align: center; padding: 10px 0 4px; }
+  .contador .n { font-size: 44px; font-weight: 800; line-height: 1; }
+  .contador .t { color: var(--sub); font-size: 13px; }
+  .camera { position: relative; margin: 8px 12px; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+  .camera video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .camera .mira { position: absolute; inset: 18% 14%; border: 3px solid rgba(255,255,255,.75); border-radius: 12px; }
+  .camera .flash { position: absolute; inset: 0; opacity: 0; transition: opacity .25s; }
+  .camera .msg { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px; text-align: center;
+    background: rgba(0,0,0,.55); font-size: 14px; }
+  .linha-acoes { display: flex; gap: 8px; padding: 0 12px; margin-top: 8px; }
+  .linha-acoes .btn.sec { flex: 1; }
+  #campoLeitor { margin: 10px 12px 0; width: calc(100% - 24px); display: none; }
+  #foto { display: none; }
+  .fila { margin: 8px 12px; padding: 8px 10px; border-radius: 10px; background: #3a2c00; color: #ffd66b; font-size: 14px; display: none; }
+  .lista { list-style: none; margin: 8px 12px 24px; padding: 0; }
+  .lista li { display: flex; gap: 8px; align-items: center; padding: 10px; border-radius: 10px; background: var(--card);
+    margin-bottom: 6px; font-size: 14px; border-left: 5px solid var(--borda); }
+  .lista li .c { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
+  .lista li .r { font-weight: 700; font-size: 12px; }
+  .lista li.ok { border-left-color: var(--ok); } .lista li.ok .r { color: #5fd38d; }
+  .lista li.erro { border-left-color: var(--erro); } .lista li.erro .r { color: #ff7b7b; }
+  .lista li.pend { border-left-color: var(--pend); } .lista li.pend .r { color: #ffd66b; }
+  .lista li.canc { opacity: .5; text-decoration: line-through; }
+
+  #erro { position: fixed; inset: 0; background: var(--erro); display: none; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px; text-align: center; z-index: 10; }
+  #erro.ativo { display: flex; animation: pisca .5s 3; }
+  #erro .tit { font-size: 34px; font-weight: 900; margin-bottom: 12px; }
+  #erro .det { font-size: 18px; max-width: 420px; }
+  #erro .cod { margin-top: 14px; font-family: ui-monospace, monospace; font-size: 14px; opacity: .85; word-break: break-all; }
+  #erro .toque { margin-top: 32px; font-size: 15px; padding: 14px 22px; border: 2px solid #fff; border-radius: 12px; }
+  @keyframes pisca { 50% { background: #7a1010; } }
+</style>
+</head>
+<body>
+
+<section id="telaPin" class="tela">
+  <h1>Expedição</h1>
+  <h2>PIN de acesso</h2>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+  <button class="btn" id="btnPin">Entrar</button>
+  <div class="aviso" id="avisoPin"></div>
+</section>
+
+<section id="telaSetup" class="tela">
+  <h1>Expedição</h1>
+  <h2>Quem está bipando</h2>
+  <div class="grade" id="gOperador"></div>
+  <h2>Loja</h2>
+  <div class="grade" id="gLoja"></div>
+  <h2>Canal</h2>
+  <div class="grade" id="gCanal"></div>
+  <button class="btn" id="btnComecar" disabled>Começar a bipar</button>
+  <div class="aviso" id="avisoSetup">Carregando…</div>
+</section>
+
+<section id="leitura" class="tela">
+  <div class="topo">
+    <div class="info"><b id="tLojaCanal"></b><span id="tOperador"></span></div>
+    <button class="btn sec" id="btnTrocar">Trocar</button>
+  </div>
+  <div class="contador"><div class="n" id="nHoje">–</div><div class="t">bipados hoje neste canal</div></div>
+  <div class="camera">
+    <video id="video" playsinline muted></video>
+    <div class="mira"></div>
+    <div class="flash" id="flash"></div>
+    <div class="msg" id="camMsg">Aponte para a etiqueta</div>
+  </div>
+  <div class="linha-acoes">
+    <button class="btn sec" id="btnFoto">Tirar foto</button>
+    <button class="btn sec" id="btnLeitor">Leitor / digitar</button>
+    <button class="btn sec" id="btnDesfazer">Desfazer</button>
+  </div>
+  <input id="foto" type="file" accept="image/*" capture="environment">
+  <input id="campoLeitor" placeholder="Leia ou digite e tecle Enter" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <div class="fila" id="fila"></div>
+  <ul class="lista" id="lista"></ul>
+</section>
+
+<div id="erro">
+  <div class="tit" id="erroTit">ERRO</div>
+  <div class="det" id="erroDet"></div>
+  <div class="cod" id="erroCod"></div>
+  <div class="toque">Toque para continuar</div>
+</div>
+
+<script>
+/* ======================================================================
+   Endereço do serviço (Apps Script > Implantar > App da Web > URL).
+   É a ÚNICA linha que precisa ser preenchida antes de publicar.
+   ====================================================================== */
+var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-BE3Cx9Tw6pjKMAYTpzVAX2nqEs33ty_3eaGXmaXKRgz/exec';
+
+(function () {
+  function ler(k, padrao) { try { var v = localStorage.getItem('exp_' + k); return v == null ? padrao : v; } catch (e) { return padrao; } }
+  function salvar(k, v) { try { localStorage.setItem('exp_' + k, v); } catch (e) {} }
+  function novoId() { return 'A' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  var st = {
+    pin: ler('pin', ''),
+    aparelho: ler('aparelho', '') || (function () { var id = 'cel-' + Math.random().toString(36).slice(2, 8); salvar('aparelho', id); return id; })(),
+    operador: ler('operador', ''), loja: ler('loja', ''), canal: ler('canal', ''),
+    setup: null,
+    fila: (function () { try { return JSON.parse(ler('fila', '[]')); } catch (e) { return []; } })(),
+    itens: [], travado: false, ultimoRaw: '', ultimoEm: 0, pausaAte: 0,
+    stream: null, detector: null, wake: null
+  };
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- comunicação com a planilha ---------- */
+  function api(acao, dados) {
+    var corpo = Object.assign({ acao: acao, pin: st.pin }, dados || {});
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita a checagem prévia de CORS
+      body: JSON.stringify(corpo),
+      redirect: 'follow'
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      if (j && j.pinInvalido) { pedirPin(j.erro); throw new Error('PIN'); }
+      return j;
+    });
+  }
+
+  /* ---------- telas ---------- */
+  function mostrar(id) {
+    ['telaPin', 'telaSetup', 'leitura'].forEach(function (t) { $(t).classList.toggle('ativa', t === id); });
+  }
+  function pedirPin(msg) {
+    pararCamera();
+    mostrar('telaPin');
+    $('avisoPin').textContent = msg || '';
+  }
+
+  function carregarSetup() {
+    if (!st.pin) { pedirPin(''); return; }
+    mostrar('telaSetup');
+    $('avisoSetup').textContent = 'Carregando…';
+    api('setup').then(function (r) {
+      if (!r.ok) { $('avisoSetup').textContent = r.erro || 'Erro ao carregar.'; return; }
+      st.setup = r; montarSetup();
+    }).catch(function (e) {
+      if (String(e.message) !== 'PIN') $('avisoSetup').textContent = 'Sem conexão com a planilha. Tente de novo. (' + e.message + ')';
+    });
+  }
+
+  function botoes(cont, itens, atual, aoEscolher) {
+    cont.innerHTML = '';
+    itens.forEach(function (it) {
+      var b = document.createElement('button');
+      b.className = 'op' + (it.valor === atual ? ' sel' : '');
+      b.textContent = it.rotulo;
+      b.onclick = function () { aoEscolher(it.valor); };
+      cont.appendChild(b);
+    });
+  }
+
+  function montarSetup() {
+    var s = st.setup;
+    if (s.operadores.indexOf(st.operador) < 0) st.operador = '';
+    if (!s.lojas.some(function (l) { return l.codigo === st.loja; })) st.loja = '';
+    var canais = s.canais.filter(function (c) { return c.loja === st.loja; });
+    if (!canais.some(function (c) { return c.canal === st.canal; })) st.canal = '';
+    botoes($('gOperador'), s.operadores.map(function (o) { return { valor: o, rotulo: o }; }), st.operador, function (v) { st.operador = v; montarSetup(); });
+    botoes($('gLoja'), s.lojas.map(function (l) { return { valor: l.codigo, rotulo: l.nome }; }), st.loja, function (v) { st.loja = v; montarSetup(); });
+    botoes($('gCanal'), canais.map(function (c) { return { valor: c.canal, rotulo: c.canal }; }), st.canal, function (v) { st.canal = v; montarSetup(); });
+    $('btnComecar').disabled = !(st.operador && st.loja && st.canal);
+    $('avisoSetup').textContent = st.loja ? '' : 'Escolha a loja para ver os canais.';
+  }
+
+  function nomeLoja(cod) {
+    var l = ((st.setup && st.setup.lojas) || []).filter(function (x) { return x.codigo === cod; })[0];
+    return l ? l.nome : cod;
+  }
+
+  /* ---------- sons e vibração ---------- */
+  var audio = null;
+  function liberarAudio() { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) {} }
+  function bip(freq, dur, tipo, atraso, vol) {
+    if (!audio) return;
+    var t = audio.currentTime + (atraso || 0), o = audio.createOscillator(), g = audio.createGain();
+    o.type = tipo || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+  function somOk() { bip(1320, 0.09); vibrar(60); }
+  function somErro() { [0, 0.25, 0.5].forEach(function (a) { bip(180, 0.2, 'square', a, 0.5); }); vibrar([350, 120, 350, 120, 350]); }
+  function somPendente() { bip(700, 0.07); bip(700, 0.07, 'sine', 0.12); }
+  function piscar(cor) { var f = $('flash'); f.style.background = cor; f.style.opacity = '.55'; setTimeout(function () { f.style.opacity = '0'; }, 220); }
+
+  /* ---------- câmera ---------- */
+  async function criarDetector() {
+    if (st.detector) return st.detector;
+    if (!('BarcodeDetector' in window)) return null;
+    var sup = await BarcodeDetector.getSupportedFormats();
+    var quero = ['qr_code', 'code_128', 'code_39', 'code_93', 'ean_13', 'itf', 'data_matrix', 'pdf417'];
+    st.detector = new BarcodeDetector({ formats: quero.filter(function (f) { return sup.indexOf(f) >= 0; }) });
+    return st.detector;
+  }
+
+  async function iniciarCamera() {
+    $('camMsg').textContent = 'Abrindo câmera…';
+    try {
+      if (!(await criarDetector())) { $('camMsg').textContent = 'Este navegador não lê códigos. Use o Chrome atualizado.'; return; }
+      st.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+      });
+      var v = $('video'); v.srcObject = st.stream; await v.play();
+      $('camMsg').textContent = 'Aponte para a etiqueta';
+      try { st.wake = await navigator.wakeLock.request('screen'); } catch (e) {}
+      ciclo();
+    } catch (e) {
+      $('camMsg').textContent = 'Câmera indisponível (' + (e && e.message ? e.message : e) + '). Use “Tirar foto”.';
+    }
+  }
+  function pararCamera() {
+    if (st.stream) { st.stream.getTracks().forEach(function (t) { t.stop(); }); st.stream = null; }
+    if (st.wake) { try { st.wake.release(); } catch (e) {} st.wake = null; }
+  }
+  async function ciclo() {
+    if (!st.stream) return;
+    if (!st.travado && Date.now() > st.pausaAte) {
+      try { var a = await st.detector.detect($('video')); if (a && a.length) processar(a[0].rawValue, 'App'); } catch (e) {}
+    }
+    setTimeout(ciclo, 120);
+  }
+
+  /* ---------- leitura ---------- */
+  function processar(raw, origem) {
+    raw = String(raw || '').trim();
+    if (!raw || st.travado) return;
+    var agora = Date.now();
+    if (raw === st.ultimoRaw && agora - st.ultimoEm < 3000) return;
+    st.ultimoRaw = raw; st.ultimoEm = agora; st.pausaAte = agora + 700;
+    var item = { id: novoId(), raw: raw, loja: st.loja, canal: st.canal, operador: st.operador,
+      aparelho: st.aparelho, origem: origem, estado: 'pend', resultado: 'ENVIANDO' };
+    st.itens.unshift(item);
+    desenharLista();
+    bip(900, 0.03, 'sine', 0, 0.15);
+    enviar(item);
+  }
+
+  function dadosDe(i) { return { id: i.id, raw: i.raw, loja: i.loja, canal: i.canal, operador: i.operador, aparelho: i.aparelho, origem: i.origem }; }
+
+  function enviar(item) {
+    api('registrar', dadosDe(item))
+      .then(function (r) { tratarResposta(item, r); })
+      .catch(function (e) {
+        if (String(e.message) === 'PIN') return;
+        item.resultado = 'NA FILA'; item.estado = 'pend';
+        if (!st.fila.some(function (f) { return f.id === item.id; })) st.fila.push(dadosDe(item));
+        salvar('fila', JSON.stringify(st.fila));
+        somPendente(); desenharLista(); desenharFila();
+      });
+  }
+
+  function tratarResposta(item, r) {
+    if (!r || !r.resultado) { mostrarErro('ERRO', (r && r.erro) || 'Resposta inesperada da planilha.', item.raw); return; }
+    st.fila = st.fila.filter(function (f) { return f.id !== item.id; });
+    salvar('fila', JSON.stringify(st.fila));
+    item.resultado = r.resultado; item.codigo = r.codigo || '';
+    var conta = r.resultado === 'OK' || r.resultado === 'SEM PADRÃO';
+    item.estado = conta ? 'ok' : 'erro';
+    if (item.loja === st.loja && item.canal === st.canal && typeof r.hoje === 'number') $('nHoje').textContent = r.hoje;
+    if (conta) { somOk(); piscar('var(--ok)'); } else { mostrarErro(r.resultado, r.mensagem, item.raw); }
+    desenharLista(); desenharFila();
+  }
+
+  function mostrarErro(titulo, detalhe, codigo) {
+    st.travado = true; somErro();
+    $('erroTit').textContent = titulo;
+    $('erroDet').textContent = detalhe || '';
+    $('erroCod').textContent = codigo ? String(codigo).slice(0, 80) : '';
+    $('erro').classList.add('ativo');
+  }
+  $('erro').onclick = function () {
+    $('erro').classList.remove('ativo');
+    st.travado = false; st.pausaAte = Date.now() + 1200; st.ultimoEm = Date.now();
+  };
+
+  /* ---------- fila offline ---------- */
+  function desenharFila() {
+    var n = st.fila.length;
+    $('fila').style.display = n ? 'block' : 'none';
+    $('fila').textContent = n + (n === 1 ? ' leitura aguardando conexão' : ' leituras aguardando conexão') + '. Serão enviadas sozinhas.';
+  }
+  var reenviando = false;
+  setInterval(function () {
+    if (!st.fila.length || reenviando || !st.pin) return;
+    reenviando = true;
+    var f = st.fila[0];
+    var item = st.itens.filter(function (i) { return i.id === f.id; })[0];
+    if (!item) { item = Object.assign({ estado: 'pend', resultado: 'NA FILA' }, f); st.itens.push(item); }
+    api('registrar', f).then(function (r) { tratarResposta(item, r); }).catch(function () {}).then(function () { reenviando = false; });
+  }, 5000);
+
+  function desenharLista() {
+    var ul = $('lista'); ul.innerHTML = '';
+    st.itens.slice(0, 15).forEach(function (i) {
+      var li = document.createElement('li');
+      li.className = i.estado + (i.resultado === 'CANCELADO' ? ' canc' : '');
+      var c = document.createElement('span'); c.className = 'c'; c.textContent = i.codigo || i.raw;
+      var r = document.createElement('span'); r.className = 'r'; r.textContent = i.resultado;
+      li.appendChild(c); li.appendChild(r); ul.appendChild(li);
+    });
+  }
+
+  function atualizarContagem() {
+    api('contagem', { loja: st.loja, canal: st.canal }).then(function (r) { if (r.ok) $('nHoje').textContent = r.hoje; }).catch(function () {});
+  }
+
+  /* ---------- botões ---------- */
+  $('btnPin').onclick = function () { st.pin = $('pin').value.trim(); salvar('pin', st.pin); carregarSetup(); };
+
+  $('btnComecar').onclick = function () {
+    liberarAudio();
+    salvar('operador', st.operador); salvar('loja', st.loja); salvar('canal', st.canal);
+    $('tLojaCanal').textContent = nomeLoja(st.loja) + ' · ' + st.canal;
+    $('tOperador').textContent = st.operador;
+    $('nHoje').textContent = '–';
+    mostrar('leitura');
+    iniciarCamera();
+    atualizarContagem();
+  };
+  $('btnTrocar').onclick = function () { pararCamera(); carregarSetup(); };
+
+  $('btnFoto').onclick = function () { liberarAudio(); $('foto').click(); };
+  $('foto').onchange = async function () {
+    var arq = this.files && this.files[0]; this.value = '';
+    if (!arq) return;
+    try {
+      var det = await criarDetector();
+      if (!det) { mostrarErro('ERRO', 'Este navegador não lê códigos.', ''); return; }
+      var img = await createImageBitmap(arq);
+      var achados = await det.detect(img);
+      if (achados && achados.length) { st.ultimoRaw = ''; processar(achados[0].rawValue, 'Foto'); }
+      else mostrarErro('NÃO LIDO', 'Nenhum código encontrado na foto. Tente mais perto e com luz.', '');
+    } catch (e) { mostrarErro('ERRO', 'Falha ao ler a foto: ' + e.message, ''); }
+  };
+
+  $('btnLeitor').onclick = function () {
+    var c = $('campoLeitor'), abrir = c.style.display !== 'block';
+    c.style.display = abrir ? 'block' : 'none';
+    if (abrir) c.focus();
+  };
+  $('campoLeitor').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); var v = this.value; this.value = ''; st.ultimoRaw = ''; processar(v, 'Leitor'); }
+  });
+
+  $('btnDesfazer').onclick = function () {
+    var alvo = st.itens.filter(function (i) { return i.estado === 'ok' && i.resultado !== 'CANCELADO'; })[0];
+    if (!alvo) { alert('Nenhuma leitura deste celular para desfazer.'); return; }
+    if (!confirm('Cancelar a leitura ' + (alvo.codigo || alvo.raw) + '?')) return;
+    api('desfazer', { id: alvo.id, aparelho: st.aparelho }).then(function (r) {
+      if (r.ok) { alvo.resultado = 'CANCELADO'; desenharLista(); atualizarContagem(); }
+      else alert(r.mensagem || r.erro);
+    }).catch(function () { alert('Sem conexão. Tente de novo.'); });
+  };
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && $('leitura').classList.contains('ativa') && !st.stream) iniciarCamera();
+    if (document.visibilityState === 'hidden') pararCamera();
+  });
+
+  if (API_URL.indexOf('http') !== 0) {
+    document.body.innerHTML = '<div style="padding:24px">Falta preencher API_URL no arquivo index.html.</div>';
+    return;
+  }
+  desenharFila();
+  carregarSetup();
+})();
+</script>
+</body>
+</html>
