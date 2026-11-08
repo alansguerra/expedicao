@@ -30,12 +30,19 @@
     background: var(--card); color: var(--txt); }
   .aviso { color: var(--sub); font-size: 14px; margin-top: 10px; }
 
-  #leitura { padding: 0; }
-  .topo { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); border-bottom: 1px solid var(--borda); }
+  /* --cor-loja vem da coluna Cor da aba Lojas */
+  #leitura { padding: 0 0 120px; --cor-loja: var(--acento); }
+  .topo { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--cor-loja); color: #fff; }
   .topo .info { flex: 1; min-width: 0; }
-  .topo .info b { display: block; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .topo .info span { color: var(--sub); font-size: 13px; }
-  .topo .btn.sec { width: auto; }
+  .topo .info b { display: block; font-size: 22px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topo .info span { color: rgba(255,255,255,.85); font-size: 13px; }
+  .topo .btn.sec { width: auto; background: rgba(0,0,0,.25); border-color: rgba(255,255,255,.4); color: #fff; }
+  .camera { outline: 4px solid var(--cor-loja); }
+  .rodape { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+    gap: 14px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); background: var(--cor-loja); color: #fff;
+    box-shadow: 0 -4px 16px rgba(0,0,0,.4); }
+  .rodape .mk { font-size: 40px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+  .rodape img { height: 56px; max-width: 130px; object-fit: contain; background: #fff; border-radius: 12px; padding: 6px; }
   .contador { text-align: center; padding: 10px 0 4px; }
   .contador .n { font-size: 44px; font-weight: 800; line-height: 1; }
   .contador .t { color: var(--sub); font-size: 13px; }
@@ -68,6 +75,52 @@
   #erro .cod { margin-top: 14px; font-family: ui-monospace, monospace; font-size: 14px; opacity: .85; word-break: break-all; }
   #erro .toque { margin-top: 32px; font-size: 15px; padding: 14px 22px; border: 2px solid #fff; border-radius: 12px; }
   @keyframes pisca { 50% { background: #7a1010; } }
+
+  /* Fechamento */
+  #telaFech { padding: 0 0 32px; }
+  .fech-topo { position: sticky; top: 0; z-index: 2; background: var(--card); border-bottom: 1px solid var(--borda);
+    padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+  .fech-topo .info { flex: 1; }
+  .fech-topo .info b { display: block; font-size: 17px; }
+  .fech-topo .info span { color: var(--sub); font-size: 13px; }
+  .fech-topo .btn.sec { width: auto; }
+  .exped { margin: 10px 12px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); }
+  .exped .linha { display: flex; align-items: center; gap: 10px; }
+  .exped .linha div { flex: 1; font-size: 14px; color: var(--sub); }
+  .exped .linha div b { color: var(--txt); font-size: 16px; }
+  .exped .btn { width: auto; margin: 0; padding: 12px 16px; font-size: 15px; }
+  .exped .btn.parar { background: var(--erro); }
+  .exped .outros { margin-top: 8px; font-size: 13px; color: var(--sub); }
+  .loja-tit { margin: 18px 12px 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); }
+  .card { margin: 0 12px 10px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); border-left-width: 6px; }
+  .card.st-ok { border-left-color: var(--ok); }
+  .card.st-falta { border-left-color: var(--erro); }
+  .card.st-sobra { border-left-color: var(--pend); }
+  .card.st-zero { opacity: .65; }
+  .card .cab { display: flex; align-items: baseline; gap: 8px; }
+  .card .cab b { font-size: 18px; }
+  .card .cab .tipo { color: var(--sub); font-size: 13px; flex: 1; }
+  .card .cab .st { font-size: 14px; font-weight: 700; }
+  .card .nums { display: flex; gap: 10px; margin-top: 10px; }
+  .card .nums > div { flex: 1; background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+  .card .nums small { display: block; color: var(--sub); font-size: 12px; }
+  .card .nums .big { font-size: 26px; font-weight: 800; }
+  .card .nums input { padding: 4px 0; border: 0; background: transparent; font-size: 26px; font-weight: 800; width: 100%; }
+  .card .horas { margin-top: 10px; font-size: 14px; color: var(--sub); }
+  .card .horas b { color: var(--txt); }
+  .card .horas .cd { font-weight: 700; }
+  .card .horas .cd.atraso { color: #ff7b7b; }
+  .card .horas .cd.perto { color: #ffd66b; }
+  .card .hora-dia { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 14px; }
+  .card .hora-dia input { width: 140px; padding: 8px 10px; font-size: 16px; }
+  .togs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tog { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--borda); background: var(--bg); color: var(--sub); font-size: 14px; font-weight: 600; }
+  .tog.on { background: #123b25; border-color: var(--ok); color: #8be0ad; }
+  .full-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .full-campos label { font-size: 12px; color: var(--sub); }
+  .full-campos input { padding: 8px 10px; font-size: 16px; margin-top: 2px; }
+  .vazio { margin: 0 12px 10px; color: var(--sub); font-size: 14px; }
+  .btn.mini { width: auto; margin: 0 12px 10px; padding: 10px 14px; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -89,7 +142,18 @@
   <h2>Canal</h2>
   <div class="grade" id="gCanal"></div>
   <button class="btn" id="btnComecar" disabled>Começar a bipar</button>
+  <button class="btn sec" id="btnIrFech" style="margin-top:12px" disabled>Fechamento do dia</button>
   <div class="aviso" id="avisoSetup">Carregando…</div>
+</section>
+
+<section id="telaFech" class="tela">
+  <div class="fech-topo">
+    <div class="info"><b id="fData">Fechamento</b><span id="fAtual">Carregando…</span></div>
+    <button class="btn sec" id="btnFechAtualizar">Atualizar</button>
+    <button class="btn sec" id="btnFechVoltar">Voltar</button>
+  </div>
+  <div class="exped" id="exped"></div>
+  <div id="fechCorpo"></div>
 </section>
 
 <section id="leitura" class="tela">
@@ -113,6 +177,7 @@
   <input id="campoLeitor" placeholder="Leia ou digite e tecle Enter" autocomplete="off" autocapitalize="off" spellcheck="false">
   <div class="fila" id="fila"></div>
   <ul class="lista" id="lista"></ul>
+  <div class="rodape"><span class="mk" id="rMk"></span><img id="rLogo" alt=""></div>
 </section>
 
 <div id="erro">
@@ -164,7 +229,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
 
   /* ---------- telas ---------- */
   function mostrar(id) {
-    ['telaPin', 'telaSetup', 'leitura'].forEach(function (t) { $(t).classList.toggle('ativa', t === id); });
+    ['telaPin', 'telaSetup', 'leitura', 'telaFech'].forEach(function (t) { $(t).classList.toggle('ativa', t === id); });
   }
   function pedirPin(msg) {
     pararCamera();
@@ -203,14 +268,32 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (!canais.some(function (c) { return c.canal === st.canal; })) st.canal = '';
     botoes($('gOperador'), s.operadores.map(function (o) { return { valor: o, rotulo: o }; }), st.operador, function (v) { st.operador = v; montarSetup(); });
     botoes($('gLoja'), s.lojas.map(function (l) { return { valor: l.codigo, rotulo: l.nome }; }), st.loja, function (v) { st.loja = v; montarSetup(); });
+    Array.prototype.forEach.call($('gLoja').children, function (b, i) {
+      var cor = s.lojas[i].cor;
+      b.style.borderColor = cor;
+      if (s.lojas[i].codigo === st.loja) { b.style.background = cor; b.style.color = '#fff'; }
+    });
     botoes($('gCanal'), canais.map(function (c) { return { valor: c.canal, rotulo: c.canal }; }), st.canal, function (v) { st.canal = v; montarSetup(); });
     $('btnComecar').disabled = !(st.operador && st.loja && st.canal);
+    $('btnIrFech').disabled = !st.operador;
     $('avisoSetup').textContent = st.loja ? '' : 'Escolha a loja para ver os canais.';
   }
 
   function nomeLoja(cod) {
     var l = ((st.setup && st.setup.lojas) || []).filter(function (x) { return x.codigo === cod; })[0];
     return l ? l.nome : cod;
+  }
+  function corLoja(cod) {
+    var l = ((st.setup && st.setup.lojas) || []).filter(function (x) { return x.codigo === cod; })[0];
+    return (l && l.cor) || '#3b82f6';
+  }
+  /* Logo do canal, procurado na pasta logos do repositório, nesta ordem:
+     1) logos/<loja>-<canal>.png  (ex.: logos/turpial-balcao.png, só para aquela loja)
+     2) logos/<canal>.png         (ex.: logos/meli.png, vale para as duas lojas)
+     Sem arquivo, aparece só o nome do canal. */
+  function slug(t) { return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+  function arquivosLogo(loja, canal) {
+    return ['logos/' + slug(loja) + '-' + slug(canal) + '.png', 'logos/' + slug(canal) + '.png'];
   }
 
   /* ---------- sons e vibração ---------- */
@@ -356,8 +439,17 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   $('btnComecar').onclick = function () {
     liberarAudio();
     salvar('operador', st.operador); salvar('loja', st.loja); salvar('canal', st.canal);
-    $('tLojaCanal').textContent = nomeLoja(st.loja) + ' · ' + st.canal;
-    $('tOperador').textContent = st.operador;
+    $('tLojaCanal').textContent = nomeLoja(st.loja).toUpperCase();
+    $('tOperador').textContent = st.operador + ' · ' + st.canal;
+    $('leitura').style.setProperty('--cor-loja', corLoja(st.loja));
+    $('rMk').textContent = st.canal;
+    var logo = $('rLogo'), opcoes = arquivosLogo(st.loja, st.canal), tentativa = 0;
+    logo.style.display = '';
+    logo.onerror = function () {
+      tentativa++;
+      if (tentativa < opcoes.length) this.src = opcoes[tentativa]; else this.style.display = 'none';
+    };
+    logo.src = opcoes[0];
     $('nHoje').textContent = '–';
     mostrar('leitura');
     iniciarCamera();
@@ -397,6 +489,222 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       else alert(r.mensagem || r.erro);
     }).catch(function () { alert('Sem conexão. Tente de novo.'); });
   };
+
+  /* ================= Fechamento do dia ================= */
+  var fech = null;
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function emMin(hhmm) { var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  function hhmm(min) { min = ((min % 1440) + 1440) % 1440; return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2); }
+  function agoraMin() { var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  function ehDiario(v) { return /di[aá]rio/i.test(v || ''); }
+  function ehMeli(c) { return String(c).toLowerCase() === 'meli'; }
+
+  function abrirFechamento() {
+    pararCamera();
+    salvar('operador', st.operador);
+    mostrar('telaFech');
+    carregarFechamento();
+  }
+
+  function carregarFechamento() {
+    $('fAtual').textContent = 'Atualizando…';
+    api('fechamento').then(function (r) {
+      if (!r.ok) { $('fAtual').textContent = r.erro || 'Erro ao carregar.'; return; }
+      fech = r; desenharFechamento();
+    }).catch(function (e) { if (String(e.message) !== 'PIN') $('fAtual').textContent = 'Sem conexão. Toque em Atualizar.'; });
+  }
+
+  function horariosDoCanal(loja, c) {
+    var meli = loja.canais.filter(function (x) { return ehMeli(x.canal); })[0];
+    var coleta = c.coletaMax, corte = c.corte;
+    if (ehDiario(c.coletaMax) || ehDiario(c.corte)) {
+      var base = (meli && meli.coletaMaxDia) || c.coletaMaxDia || '';
+      coleta = base;
+      corte = base ? hhmm(emMin(base) - emMin(fech.antecedencia || '02:58')) : '';
+    }
+    return { coleta: coleta, corte: corte };
+  }
+
+  function statusCanal(c) {
+    if (String(c.aEnviar) === '') return { cls: '', txt: '⌚ informe a enviar' };
+    var a = Number(c.aEnviar), b = c.bipados;
+    if (a === 0 && b === 0) return { cls: 'st-zero', txt: 'Sem pedidos' };
+    if (a === b) return { cls: 'st-ok', txt: '✅ Conferido' };
+    if (b < a) return { cls: 'st-falta', txt: '❌ Faltam ' + (a - b) };
+    return { cls: 'st-sobra', txt: '⚠️ ' + (b - a) + ' a mais' };
+  }
+
+  function contagemRegressiva(alvo, ok) {
+    var m = emMin(alvo);
+    if (m == null) return null;
+    var dif = m - agoraMin();
+    if (ok) return { txt: '', cls: '' };
+    if (dif < 0) return { txt: 'passou há ' + fmtDur(-dif), cls: 'atraso' };
+    return { txt: 'faltam ' + fmtDur(dif), cls: dif <= 30 ? 'perto' : '' };
+  }
+  function fmtDur(min) { return min >= 60 ? Math.floor(min / 60) + 'h' + ('0' + (min % 60)).slice(-2) : min + ' min'; }
+
+  function toggle(rotulo, ligado, aoMudar) {
+    var b = el('button', 'tog' + (ligado ? ' on' : ''), (ligado ? '✓ ' : '') + rotulo);
+    b.onclick = function () { aoMudar(!ligado); };
+    return b;
+  }
+
+  function salvarCanal(loja, c) {
+    desenharFechamento();
+    api('salvarFechamento', {
+      loja: loja.codigo, canal: c.canal, aEnviar: c.aEnviar, coletaMaxDia: c.coletaMaxDia || '',
+      gaiola: c.gaiola, veiculo: c.veiculo, coletado: c.coletado, aCaminho: c.aCaminho, operador: st.operador
+    }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
+      .catch(function () { alert('Sem conexão: a alteração não foi salva. Tente de novo.'); });
+  }
+
+  function salvarEnvioFull(loja, f) {
+    desenharFechamento();
+    api('salvarFull', {
+      loja: loja.codigo, envio: f.envio, previsao: f.previsao, motorista: f.motorista, placa: f.placa,
+      pasta: f.pasta, coletado: f.coletado, operador: st.operador
+    }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
+      .catch(function () { alert('Sem conexão: a alteração não foi salva. Tente de novo.'); });
+  }
+
+  function desenharExpediente() {
+    var box = $('exped'); box.innerHTML = '';
+    var meus = (fech.expediente[st.operador] || []);
+    var aberto = meus.filter(function (x) { return x.inicio && !x.fim; })[0];
+    var linha = el('div', 'linha');
+    var info = el('div');
+    var b = el('b', null, st.operador);
+    info.appendChild(b);
+    info.appendChild(document.createTextNode(aberto ? ' · em expediente desde ' + aberto.inicio : ' · fora do expediente'));
+    var btn = el('button', 'btn' + (aberto ? ' parar' : ''), aberto ? 'Encerrar' : 'Iniciar expediente');
+    btn.onclick = function () {
+      btn.disabled = true;
+      api('expediente', { operador: st.operador, tipo: aberto ? 'fim' : 'inicio' }).then(function (r) {
+        if (!r.ok) alert(r.erro);
+        carregarFechamento();
+      }).catch(function () { btn.disabled = false; alert('Sem conexão. Tente de novo.'); });
+    };
+    linha.appendChild(info); linha.appendChild(btn); box.appendChild(linha);
+
+    var outros = Object.keys(fech.expediente).filter(function (o) { return o !== st.operador; }).map(function (o) {
+      var ab = fech.expediente[o].filter(function (x) { return x.inicio && !x.fim; })[0];
+      return o + (ab ? ': desde ' + ab.inicio : ': encerrado');
+    });
+    if (outros.length) box.appendChild(el('div', 'outros', outros.join(' · ')));
+  }
+
+  function desenharFechamento() {
+    if (!fech) return;
+    $('fData').textContent = 'Fechamento · ' + fech.data;
+    $('fAtual').textContent = 'Atualizado às ' + hhmm(agoraMin());
+    desenharExpediente();
+    var corpo = $('fechCorpo'); corpo.innerHTML = '';
+
+    fech.lojas.forEach(function (loja) {
+      var tit = el('div', 'loja-tit', loja.nome);
+      tit.style.color = loja.cor || '';
+      tit.style.fontWeight = '800';
+      corpo.appendChild(tit);
+      var temMeli = loja.canais.some(function (x) { return ehMeli(x.canal); });
+
+      loja.canais.forEach(function (c) {
+        var s = statusCanal(c);
+        var card = el('div', 'card ' + s.cls);
+        var cab = el('div', 'cab');
+        cab.appendChild(el('b', null, c.canal));
+        cab.appendChild(el('span', 'tipo', c.tipoEnvio));
+        cab.appendChild(el('span', 'st', s.txt));
+        card.appendChild(cab);
+
+        var nums = el('div', 'nums');
+        var d1 = el('div'); d1.appendChild(el('small', null, 'Bipados')); d1.appendChild(el('div', 'big', String(c.bipados)));
+        var d2 = el('div'); d2.appendChild(el('small', null, 'A enviar (marketplace)'));
+        var inp = el('input'); inp.type = 'number'; inp.inputMode = 'numeric'; inp.min = '0'; inp.placeholder = '–'; inp.value = c.aEnviar;
+        inp.onchange = function () { c.aEnviar = this.value.trim(); salvarCanal(loja, c); };
+        d2.appendChild(inp);
+        nums.appendChild(d1); nums.appendChild(d2); card.appendChild(nums);
+
+        var diario = ehDiario(c.coletaMax) || ehDiario(c.corte);
+        if (diario && (ehMeli(c.canal) || !temMeli)) {
+          var hd = el('div', 'hora-dia');
+          hd.appendChild(el('span', null, 'Coleta máx. hoje'));
+          var t = el('input'); t.type = 'time'; t.value = c.coletaMaxDia || '';
+          t.onchange = function () { c.coletaMaxDia = this.value; salvarCanal(loja, c); };
+          hd.appendChild(t); card.appendChild(hd);
+        }
+
+        var h = horariosDoCanal(loja, c);
+        var horas = el('div', 'horas');
+        if (h.corte || h.coleta) {
+          var concluido = s.cls === 'st-ok' || s.cls === 'st-zero';
+          horas.appendChild(document.createTextNode('Corte '));
+          horas.appendChild(el('b', null, h.corte || '–'));
+          horas.appendChild(document.createTextNode(' · Coleta até '));
+          horas.appendChild(el('b', null, h.coleta || '–'));
+          var semAlerta = c.coletado || s.cls === 'st-zero';
+          var cd = contagemRegressiva(semAlerta ? '' : (agoraMin() <= emMin(h.corte) ? h.corte : h.coleta), concluido && c.coletado);
+          if (cd && cd.txt) { horas.appendChild(document.createTextNode(' · ')); horas.appendChild(el('span', 'cd ' + cd.cls, cd.txt)); }
+        } else if (diario) {
+          horas.textContent = 'Informe a coleta máxima do Meli para calcular o corte.';
+        }
+        card.appendChild(horas);
+
+        var togs = el('div', 'togs');
+        togs.appendChild(toggle('Gaiola', c.gaiola, function (v) { c.gaiola = v; salvarCanal(loja, c); }));
+        if (/postagem/i.test(c.tipoEnvio)) togs.appendChild(toggle('Veículo', c.veiculo, function (v) { c.veiculo = v; salvarCanal(loja, c); }));
+        togs.appendChild(toggle(/postagem/i.test(c.tipoEnvio) ? 'Postado' : 'Coletado', c.coletado, function (v) { c.coletado = v; salvarCanal(loja, c); }));
+        togs.appendChild(toggle('A caminho', c.aCaminho, function (v) { c.aCaminho = v; salvarCanal(loja, c); }));
+        card.appendChild(togs);
+        corpo.appendChild(card);
+      });
+
+      corpo.appendChild(el('div', 'loja-tit', loja.nome + ' · Full ⚡'));
+      if (fech.fullErro) corpo.appendChild(el('div', 'vazio', fech.fullErro));
+      if (!loja.full.length) corpo.appendChild(el('div', 'vazio', 'Sem coleta Full hoje.'));
+      loja.full.forEach(function (f) {
+        var card = el('div', 'card ' + (f.coletado ? 'st-ok' : ''));
+        var cab = el('div', 'cab');
+        cab.appendChild(el('b', null, 'Envio ' + f.envio));
+        cab.appendChild(el('span', 'tipo', ''));
+        cab.appendChild(el('span', 'st', f.coletado ? '✅ Coletado' : '⌚ Aguardando'));
+        card.appendChild(cab);
+        var g = el('div', 'full-campos');
+        [['previsao', 'Previsão', 'time'], ['motorista', 'Motorista', 'text'], ['placa', 'Placa', 'text']].forEach(function (cfg) {
+          var lb = el('label', null, cfg[1]);
+          var i = el('input'); i.type = cfg[2]; i.value = f[cfg[0]] || ''; i.autocomplete = 'off';
+          if (cfg[0] === 'placa') i.style.textTransform = 'uppercase';
+          i.onchange = function () { f[cfg[0]] = this.value.trim(); salvarEnvioFull(loja, f); };
+          lb.appendChild(i); g.appendChild(lb);
+        });
+        card.appendChild(g);
+        var togs = el('div', 'togs');
+        togs.appendChild(toggle('Pasta na garagem', f.pasta, function (v) { f.pasta = v; salvarEnvioFull(loja, f); }));
+        togs.appendChild(toggle('Coletado', f.coletado, function (v) { f.coletado = v; salvarEnvioFull(loja, f); }));
+        card.appendChild(togs);
+        corpo.appendChild(card);
+      });
+      var add = el('button', 'btn sec mini', '+ Envio Full manual');
+      add.onclick = function () {
+        var n = (prompt('Número do envio Full:') || '').trim();
+        if (!n) return;
+        var f = { envio: n, previsao: '', motorista: '', placa: '', pasta: false, coletado: false };
+        loja.full.push(f); salvarEnvioFull(loja, f);
+      };
+      corpo.appendChild(add);
+    });
+  }
+
+  $('btnIrFech').onclick = abrirFechamento;
+  $('btnFechVoltar').onclick = function () { carregarSetup(); };
+  $('btnFechAtualizar').onclick = carregarFechamento;
+  setInterval(function () {
+    if (!$('telaFech').classList.contains('ativa') || document.visibilityState !== 'visible') return;
+    var foco = document.activeElement;
+    if (foco && foco.tagName === 'INPUT' && $('telaFech').contains(foco)) return; // não atrapalhar quem está digitando
+    carregarFechamento();
+  }, 45000);
 
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && $('leitura').classList.contains('ativa') && !st.stream) iniciarCamera();
