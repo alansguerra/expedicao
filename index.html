@@ -612,10 +612,10 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   }
   function ehPostagem(tipo) { return /postagem/i.test(tipo || ''); }
   function rotuloMax(tipo) { return ehPostagem(tipo) ? 'Postagem até' : 'Coleta a partir de'; }
-  /** Meli: postagem → corte = horário − 2h58; coleta → corte = horário − 0h58 (valores da aba Config). */
+  /** Meli: postagem → corte = horário − 2h58; coleta → corte = horário − 2h58 (valores da aba Config). */
   function antecedencia(tipo, fonte) {
     fonte = fonte || {};
-    return ehPostagem(tipo) ? (fonte.antecedencia || '02:58') : (fonte.antecedenciaColeta || '00:58');
+    return ehPostagem(tipo) ? (fonte.antecedencia || '02:58') : (fonte.antecedenciaColeta || '02:58');
   }
 
   /** Tela inicial: um quadro por loja com o código do dia e o horário máximo de hoje do Meli. */
