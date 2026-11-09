@@ -770,6 +770,9 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       if (!r.ok) return;
       st.setup.canais = r.canais; st.setup.antecedencia = r.antecedencia; st.setup.antecedenciaColeta = r.antecedenciaColeta;
       st.codigos = r.codigos || {}; st.horarios = r.horarios || {}; st.codigosData = r.data; guardarDia();
+      // Tela inicial aberta e ninguém digitando: mostra o código/horário novo sem precisar tocar em nada.
+      var foco = document.activeElement;
+      if ($('telaSetup').classList.contains('ativa') && !(foco && foco.tagName === 'INPUT' && $('codigosInicio').contains(foco))) desenharCodigos($('codigosInicio'), st.setup.lojas);
     }).catch(function () {});
   }, 180000);
   setInterval(verificarAlarmes, 15000);
