@@ -30,6 +30,7 @@
   .grupo { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .grupo small { color: var(--sub); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin-right: 2px; }
   .chip { border: 1px solid var(--borda); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--sub); }
+  .abas .chip { font-size: 15px; padding: 7px 18px; }
   .chip.on { background: #26324a; border-color: var(--acento); color: var(--txt); font-weight: 700; }
 
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); margin: 26px 0 10px; }
@@ -95,16 +96,20 @@
 
 <div id="painel" style="display:none">
   <div class="topo"><div class="wrap">
-    <h1>Gestão · Pedidos<span id="gerado">Carregando…</span></h1>
+    <h1>Gestão<span id="gerado">Carregando…</span></h1>
     <button class="btn" id="btnAtualizar">Atualizar</button>
   </div></div>
   <div class="wrap">
+    <div class="filtros">
+      <div class="grupo abas" id="fAba"></div>
+    </div>
     <div class="filtros">
       <div class="grupo" id="fLoja"><small>Loja</small></div>
       <div class="grupo" id="fCanal"><small>Canal</small></div>
     </div>
     <div id="carregando">Carregando os pedidos…</div>
     <div id="conteudo" style="display:none">
+     <div id="vPedidos">
       <h2>Resumo</h2>
       <div class="kpis" id="kpis"></div>
 
@@ -139,6 +144,35 @@
         <div id="gHoras"></div>
         <div class="nota" id="notaHoras"></div>
       </div>
+     </div>
+
+     <div id="vFull" style="display:none">
+      <div id="fullErro" class="nota" style="color:var(--desce)"></div>
+      <h2 id="tFullResumo">Resumo do ano</h2>
+      <div class="kpis" id="fKpis"></div>
+
+      <h2>Aguardando cobrança</h2>
+      <div class="card rolar"><table id="fPend"></table></div>
+
+      <h2>Por mês</h2>
+      <div class="card">
+        <div class="card-cab">
+          <b id="tFullGraf">Custo do Full por mês</b>
+          <div class="grupo" id="fMetrica"></div>
+        </div>
+        <div id="fGraf"></div>
+        <div class="legenda" id="fLeg"></div>
+        <div class="nota">Custo = valor cobrado; nos envios ainda não cobrados entra o valor previsto. Mês da data do envio.</div>
+      </div>
+
+      <h2>Por ano e loja</h2>
+      <div class="card rolar"><table id="fAnos"></table></div>
+
+      <h2>Cobrado acima do previsto</h2>
+      <div class="card rolar"><table id="fDif"></table>
+        <div class="nota">Os 10 envios com maior diferença a mais nos últimos 12 meses — vale conferir com o Mercado Livre.</div>
+      </div>
+     </div>
     </div>
   </div>
 </div>
@@ -151,7 +185,7 @@
   var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-BE3Cx9Tw6pjKMAYTpzVAX2nqEs33ty_3eaGXmaXKRgz/exec';
   var CANAIS = ['Meli', 'Flex', 'Shopee', 'Balcão', 'Outros'];             // ordem fixa das cores
   var COR_CANAL = { 'Meli': 'var(--c-meli)', 'Flex': 'var(--c-flex)', 'Shopee': 'var(--c-shopee)', 'Balcão': 'var(--c-balcao)', 'Outros': 'var(--c-outros)' };
-  var COR_LOJA = { 'TURPIAL': 'var(--l-turpial)', 'EMPORIO': 'var(--l-emporio)' };
+  var COR_LOJA = { 'TURPIAL': 'var(--l-turpial)', 'EMPORIO': 'var(--l-emporio)', 'MULTI': 'var(--c-outros)' };
   var DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -161,7 +195,7 @@
   function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
   function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
 
-  var st = { pin: ler('pin', ''), dados: null, loja: ler('loja', 'todas'), canal: ler('canal', 'todos'), grao: ler('grao', 'dia'), separar: ler('separar', 'canal') };
+  var st = { aba: ler('aba', 'pedidos'), metrica: ler('metrica', 'custo'), pin: ler('pin', ''), dados: null, loja: ler('loja', 'todas'), canal: ler('canal', 'todos'), grao: ler('grao', 'dia'), separar: ler('separar', 'canal') };
 
   /* ---------- datas (sempre em dia local, formato yyyy-mm-dd) ---------- */
   function d2s(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
@@ -237,6 +271,8 @@
   function desenharFiltros() {
     var lojas = [['todas', 'Todas']].concat((st.dados.lojas || []).filter(function (l) { return st.dados.serie.some(function (s) { return s.loja === l.codigo; }); }).map(function (l) { return [l.codigo, l.nome]; }));
     chips($('fLoja'), 'Loja', lojas, st.loja, function (v) { st.loja = v; salvar('loja', v); desenhar(); });
+    chips($('fAba'), null, [['pedidos', 'Pedidos'], ['full', 'Full ⚡']], st.aba, function (v) { st.aba = v; salvar('aba', v); desenhar(); });
+    $('fCanal').style.display = st.aba === 'full' ? 'none' : '';
     chips($('fCanal'), 'Canal', [['todos', 'Todos']].concat(CANAIS.map(function (c) { return [c, c]; })), st.canal, function (v) { st.canal = v; salvar('canal', v); desenhar(); });
     chips($('fGrao'), null, [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano']], st.grao, function (v) { st.grao = v; salvar('grao', v); desenhar(); });
     chips($('fSeparar'), 'Separar por', [['canal', 'Canal'], ['loja', 'Loja']], st.separar, function (v) { st.separar = v; salvar('separar', v); desenhar(); });
@@ -437,14 +473,153 @@
     $('notaHoras').textContent = 'Média de bipagens por hora em cada dia da semana, desde ' + br(st.dados.inicioHoras) + '/' + st.dados.inicioHoras.slice(0, 4) + ' (o histórico antigo não tem horário). Mostra as duas lojas e todos os canais.';
   }
 
+
+  /* ================= Full ================= */
+  // linha do Full: [0 data, 1 loja, 2 envio, 3 previsto, 4 cobrado|null, 5 itens, 6 pago, 7 no prazo 1/0/null]
+  function reais(v) { return 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function reaisCurto(v) { return v >= 1000 ? 'R$ ' + (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : 'R$ ' + Math.round(v); }
+  function fullFiltrado() { return (st.dados.full || []).filter(function (f) { return st.loja === 'todas' || f[1] === st.loja; }); }
+  function custo(f) { return f[4] == null ? f[3] : f[4]; }
+  function somaFull(lista) {
+    var r = { envios: 0, itens: 0, custo: 0, previsto: 0, cobrado: 0, difCob: 0, nCob: 0, prazoOk: 0, prazoN: 0 };
+    lista.forEach(function (f) {
+      r.envios++; r.itens += f[5]; r.custo += custo(f); r.previsto += f[3];
+      if (f[4] != null) { r.cobrado += f[4]; r.difCob += f[4] - f[3]; r.nCob++; }
+      if (f[7] != null) { r.prazoN++; r.prazoOk += f[7]; }
+    });
+    return r;
+  }
+  function entre(lista, ini, fim) { var a = d2s(ini), b = d2s(fim); return lista.filter(function (f) { return f[0] >= a && f[0] <= b; }); }
+
+  function desenharFull() {
+    $('fullErro').textContent = st.dados.fullErro || '';
+    var todos = fullFiltrado(), hoje = s2d(st.dados.hoje);
+    var a0 = new Date(hoje.getFullYear(), 0, 1), aY = new Date(hoje.getFullYear() - 1, 0, 1), aYfim = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
+    var ano = somaFull(entre(todos, a0, hoje)), antes = somaFull(entre(todos, aY, aYfim));
+    $('tFullResumo').textContent = 'Resumo de ' + hoje.getFullYear() + ' (até hoje)';
+    var box = $('fKpis'); box.innerHTML = '';
+    function card(t, v, txtV, comp, compTxt, inverter) {
+      var k = el('div', 'kpi'); k.appendChild(el('small', null, t)); k.appendChild(el('div', 'v', txtV));
+      if (comp != null) {
+        var x = variacao(v, comp), linha = el('div', 'cmp');
+        if (inverter && x.cls) x.cls = x.cls === 'sobe' ? 'desce' : 'sobe'; // em custo, subir é ruim
+        linha.appendChild(el('b', x.cls, x.txt)); linha.appendChild(document.createTextNode(' vs ano passado (' + compTxt + ')')); k.appendChild(linha);
+      }
+      return k;
+    }
+    box.appendChild(card('Envios', ano.envios, fmt(ano.envios), antes.envios, fmt(antes.envios)));
+    box.appendChild(card('Itens enviados', ano.itens, fmt(ano.itens), antes.itens, fmt(antes.itens)));
+    box.appendChild(card('Custo do Full', ano.custo, reais(ano.custo), antes.custo, reais(antes.custo), true));
+    var cpi = ano.itens ? ano.custo / ano.itens : 0, cpiA = antes.itens ? antes.custo / antes.itens : 0;
+    var k4 = card('Custo por item', cpi, reais(cpi), cpiA || null, reais(cpiA), true);
+    if (ano.prazoN) k4.appendChild(el('div', 'cmp', Math.round(ano.prazoOk / ano.prazoN * 100) + '% dos envios preparados no prazo'));
+    box.appendChild(k4);
+
+    // Aguardando cobrança
+    var pend = todos.filter(function (f) { return f[4] == null || !f[6]; }).sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    var t = $('fPend'); t.innerHTML = '';
+    if (!pend.length) { var tr0 = el('tr'); tr0.appendChild(el('td', null, 'Nenhum envio aguardando cobrança.')); t.appendChild(tr0); }
+    else {
+      var cab = el('tr'); ['Data', 'Loja', 'Envio', 'Itens', 'Previsto', 'Cobrado'].forEach(function (h) { cab.appendChild(el('th', null, h)); }); t.appendChild(cab);
+      var totP = 0;
+      pend.forEach(function (f) {
+        var tr = el('tr'); totP += f[3];
+        [br(f[0]) + '/' + f[0].slice(2, 4), nomeLoja(f[1]), f[2], fmt(f[5]), reais(f[3]), f[4] == null ? 'aguardando' : reais(f[4]) + ' (não pago)'].forEach(function (v) { tr.appendChild(el('td', null, v)); });
+        t.appendChild(tr);
+      });
+      var tt = el('tr', 'total'); ['Total previsto', '', pend.length + ' envios', '', reais(totP), ''].forEach(function (v) { tt.appendChild(el('td', null, v)); }); t.appendChild(tt);
+    }
+
+    desenharGraficoFull(todos, hoje);
+
+    // Por ano e loja
+    var tb = $('fAnos'); tb.innerHTML = '';
+    var cab2 = el('tr'); ['', 'Envios', 'Itens', 'Previsto', 'Cobrado', 'Diferença', 'Custo/item', 'No prazo'].forEach(function (h) { cab2.appendChild(el('th', null, h)); }); tb.appendChild(cab2);
+    var anos = {}; todos.forEach(function (f) { anos[f[0].slice(0, 4)] = 1; });
+    var lojas = []; todos.forEach(function (f) { if (lojas.indexOf(f[1]) < 0) lojas.push(f[1]); });
+    lojas.sort(function (a, b) { var o = ['TURPIAL', 'EMPORIO', 'MULTI']; return o.indexOf(a) - o.indexOf(b); });
+    Object.keys(anos).sort().reverse().forEach(function (y) {
+      var doAno = todos.filter(function (f) { return f[0].slice(0, 4) === y; });
+      linhaAno(tb, y + (y === String(hoje.getFullYear()) ? ' (até hoje)' : ''), 'loja', somaFull(doAno));
+      if (lojas.length > 1) lojas.forEach(function (l) { var x = doAno.filter(function (f) { return f[1] === l; }); if (x.length) linhaAno(tb, '   ' + nomeLoja(l), '', somaFull(x)); });
+    });
+
+    // Maiores diferenças
+    var ini12 = d2s(soma(hoje, -365));
+    var difs = todos.filter(function (f) { return f[4] != null && f[0] >= ini12 && f[4] - f[3] > 0.5; }).sort(function (a, b) { return (b[4] - b[3]) - (a[4] - a[3]); }).slice(0, 10);
+    var td = $('fDif'); td.innerHTML = '';
+    if (!difs.length) { var tr1 = el('tr'); tr1.appendChild(el('td', null, 'Nenhum envio cobrado acima do previsto nos últimos 12 meses.')); td.appendChild(tr1); }
+    else {
+      var cab3 = el('tr'); ['Data', 'Loja', 'Envio', 'Previsto', 'Cobrado', 'A mais'].forEach(function (h) { cab3.appendChild(el('th', null, h)); }); td.appendChild(cab3);
+      difs.forEach(function (f) { var tr = el('tr'); [br(f[0]) + '/' + f[0].slice(2, 4), nomeLoja(f[1]), f[2], reais(f[3]), reais(f[4]), reais(f[4] - f[3])].forEach(function (v) { tr.appendChild(el('td', null, v)); }); td.appendChild(tr); });
+    }
+  }
+  function linhaAno(tb, nome, cls, r) {
+    var tr = el('tr', cls);
+    [nome, fmt(r.envios), fmt(r.itens), reais(r.previsto), reais(r.cobrado), (r.difCob >= 0 ? '+' : '') + reais(r.difCob).replace('R$ -', '-R$ '),
+      r.itens ? reais(r.custo / r.itens) : '–', r.prazoN ? Math.round(r.prazoOk / r.prazoN * 100) + '%' : '–'].forEach(function (v) { tr.appendChild(el('td', null, v)); });
+    tb.appendChild(tr);
+  }
+
+  function desenharGraficoFull(todos, hoje) {
+    chips($('fMetrica'), null, [['custo', 'Custo'], ['envios', 'Envios'], ['itens', 'Itens']], st.metrica, function (v) { st.metrica = v; salvar('metrica', v); desenharGraficoFull(fullFiltrado(), s2d(st.dados.hoje)); });
+    var nomes = { custo: 'Custo do Full por mês', envios: 'Envios Full por mês', itens: 'Itens enviados ao Full por mês' };
+    $('tFullGraf').textContent = nomes[st.metrica] + ' · últimos 24';
+    var lojas = []; todos.forEach(function (f) { if (lojas.indexOf(f[1]) < 0) lojas.push(f[1]); });
+    lojas.sort(function (a, b) { var o = ['TURPIAL', 'EMPORIO', 'MULTI']; return o.indexOf(a) - o.indexOf(b); });
+    var gs = lojas.map(function (l) { return { chave: l, nome: nomeLoja(l), cor: COR_LOJA[l] || 'var(--c-outros)' }; });
+    var ps = [];
+    for (var m = 23; m >= 0; m--) {
+      var ini = new Date(hoje.getFullYear(), hoje.getMonth() - m, 1), fim = new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
+      var p = { rot: MESES[ini.getMonth()] + (ini.getMonth() === 0 || m === 23 ? '/' + String(ini.getFullYear()).slice(2) : ''), dica: MESES[ini.getMonth()] + '/' + ini.getFullYear(), v: {}, tot: 0 };
+      entre(todos, ini, fim).forEach(function (f) { var x = st.metrica === 'custo' ? custo(f) : st.metrica === 'itens' ? f[5] : 1; p.v[f[1]] = (p.v[f[1]] || 0) + x; p.tot += x; });
+      ps.push(p);
+    }
+    var fmtV = st.metrica === 'custo' ? reais : fmt, fmtEixo = st.metrica === 'custo' ? reaisCurto : fmt;
+    var max = Math.max.apply(null, ps.map(function (p) { return p.tot; }).concat([1])), passo = escala(max), topo = Math.ceil(max / passo) * passo;
+    var W = Math.max(320, Math.round($('fGraf').clientWidth || 1000)), H = W < 600 ? 240 : 280, mE = st.metrica === 'custo' ? 64 : 44, mD = 8, mT = 10, mB = 26, aw = W - mE - mD, ah = H - mT - mB;
+    var bw = aw / ps.length, larg = Math.max(2, Math.min(42, bw * 0.68));
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + nomes[st.metrica] + '"><g class="grade">';
+    for (var v = 0; v <= topo; v += passo) { var y = mT + ah - v / topo * ah; svg += '<line x1="' + mE + '" x2="' + (W - mD) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (mE - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + fmtEixo(v) + '</text>'; }
+    svg += '</g>';
+    var cada = Math.ceil(ps.length / Math.max(4, Math.floor(aw / 70)));
+    ps.forEach(function (p, i) {
+      var x = mE + i * bw + (bw - larg) / 2, base = mT + ah, vis = gs.filter(function (g) { return p.v[g.chave]; });
+      vis.forEach(function (g, j) {
+        var hh = p.v[g.chave] / topo * ah, y0 = base - hh, ultimo = j === vis.length - 1;
+        svg += caminho(x, y0 + (ultimo ? 0 : 2), larg, Math.max(0, hh - (ultimo ? 0 : 2)), ultimo ? Math.min(4, larg / 2) : 0, g.cor);
+        base = y0;
+      });
+      if (i % cada === 0 || i === ps.length - 1) svg += '<text x="' + (mE + i * bw + bw / 2) + '" y="' + (H - 8) + '" text-anchor="middle">' + p.rot + '</text>';
+      svg += '<rect class="alvo" data-i="' + i + '" x="' + (mE + i * bw) + '" y="' + mT + '" width="' + bw + '" height="' + ah + '"/>';
+    });
+    var box = $('fGraf'); box.innerHTML = svg + '</svg>';
+    [].forEach.call(box.querySelectorAll('.alvo'), function (r) {
+      function mostra(e) {
+        var p = ps[+r.dataset.i], d = $('dica');
+        mostrarDica(e, p.dica, gs.map(function (g) { return [g.nome, p.v[g.chave] || 0, g.cor]; }), null);
+        // valores formatados conforme a métrica
+        [].forEach.call(d.querySelectorAll('.l span:last-child'), function (s, k) { var g = gs.filter(function (x) { return p.v[x.chave]; })[k]; if (g) s.textContent = fmtV(p.v[g.chave]); });
+        var tl = el('div', 'l'); tl.style.marginTop = '4px'; tl.appendChild(el('span', null, 'Total')); var tv = el('span', null, fmtV(p.tot)); tv.style.fontWeight = '800'; tl.appendChild(tv); d.appendChild(tl);
+      }
+      r.addEventListener('mousemove', mostra); r.addEventListener('click', mostra); r.addEventListener('mouseleave', esconderDica);
+    });
+    var leg = $('fLeg'); leg.innerHTML = '';
+    if (gs.length > 1) gs.forEach(function (g) { var s2 = el('span'), i2 = el('i'); i2.style.background = g.cor; s2.appendChild(i2); s2.appendChild(document.createTextNode(g.nome)); leg.appendChild(s2); });
+  }
+
   function desenhar() {
     if (!st.dados) return;
     $('gerado').textContent = 'Dados de ' + st.dados.gerado;
     $('carregando').style.display = 'none'; $('conteudo').style.display = '';
-    desenharFiltros(); desenharKpis(); desenharGrafico(); desenharTabela(); desenharPicos();
+    desenharFiltros();
+    $('vPedidos').style.display = st.aba === 'full' ? 'none' : '';
+    $('vFull').style.display = st.aba === 'full' ? '' : 'none';
+    if (st.aba === 'full') desenharFull();
+    else { desenharKpis(); desenharGrafico(); desenharTabela(); desenharPicos(); }
   }
 
-  var tRes; addEventListener('resize', function () { clearTimeout(tRes); tRes = setTimeout(function () { if (st.dados) desenharGrafico(); }, 200); });
+  var tRes; addEventListener('resize', function () { clearTimeout(tRes); tRes = setTimeout(function () { if (st.dados) desenhar(); }, 200); });
   carregar(false);
 })();
 </script>
