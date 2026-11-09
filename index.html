@@ -164,6 +164,21 @@
   body.pc #campoLeitor { display: block; font-size: 20px; padding: 16px; border: 3px solid var(--cor-loja, var(--acento)); }
   body.pc #erro .toque::after { content: ' (ou tecle Esc)'; }
   body.pc #telaFech { max-width: 900px; }
+  /* Alarme do corte */
+  #ativarAlarme { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: #3a2c00; color: #ffd66b;
+    padding: 12px 16px; text-align: center; font-weight: 700; cursor: pointer; }
+  #alarme { position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.75); display: none; align-items: center; justify-content: center; padding: 16px; }
+  #alarme.ativo { display: flex; }
+  #alarme.tocando .al-caixa { animation: alpisca 1s infinite; }
+  @keyframes alpisca { 50% { box-shadow: 0 0 0 6px var(--pend); } }
+  .al-caixa { width: 100%; max-width: 460px; background: var(--card); border: 2px solid var(--pend); border-radius: 16px; padding: 18px; }
+  .al-tit { font-size: 28px; font-weight: 900; color: #ffd66b; }
+  .al-sub { color: var(--sub); font-size: 14px; margin: 4px 0 12px; }
+  .al-linha { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .al-linha span { flex: 1; font-weight: 700; }
+  .al-linha span small { display: block; font-weight: 400; color: var(--sub); }
+  .al-linha input { width: 110px; font-size: 22px; font-weight: 800; padding: 8px 10px; }
+  #alarme .btn { margin-top: 8px; }
   /* Resumo do fechamento */
   #resumo:empty { display: none; }
   #resumo { margin: 10px 12px 4px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); }
@@ -241,6 +256,17 @@
   <ul class="lista" id="lista"></ul>
   <div class="rodape"><span class="mk" id="rMk"></span><img id="rLogo" alt=""></div>
 </section>
+
+<div id="ativarAlarme">🔔 Clique aqui para ativar o alarme dos cortes</div>
+<div id="alarme">
+  <div class="al-caixa">
+    <div class="al-tit" id="alTit">⏰ Corte</div>
+    <div class="al-sub">Digite quantos pedidos vão sair em cada canal:</div>
+    <div id="alLista"></div>
+    <button class="btn" id="alOk">Confirmar</button>
+    <button class="btn sec" id="alDepois">Depois</button>
+  </div>
+</div>
 
 <div id="erro">
   <div class="tit" id="erroTit">ERRO</div>
@@ -664,6 +690,107 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     });
     box.appendChild(grade);
   }
+
+  /* ================= Alarme do corte =================
+     Toca no horário exato de cada corte do dia, com o app aberto (no PC pode estar minimizado).
+     Cortes: canais com horário fixo (aba Canais) e o Meli pelo horário informado na tela inicial. */
+  var alarme = { atual: null, som: null };
+  function cortesDeHoje() {
+    var s = st.setup; if (!s || !s.canais) return [];
+    var hoje = st.codigosData === hojeLocal(), hor = (hoje && st.horarios) || {}, lista = [];
+    s.canais.forEach(function (c) {
+      var corte = '';
+      if (ehDiario(c.corte)) {
+        var meli = s.canais.filter(function (x) { return x.loja === c.loja && ehMeli(x.canal); })[0];
+        var base = hor[c.loja];
+        if (base) corte = hhmm(emMin(base) - emMin(antecedencia(meli ? meli.tipoEnvio : c.tipoEnvio, s)));
+      } else if (emMin(c.corte) != null) corte = hhmm(emMin(c.corte));
+      if (corte) lista.push({ loja: c.loja, canal: c.canal, corte: corte });
+    });
+    return lista;
+  }
+  function alarmesFeitos() { try { var a = JSON.parse(ler('alarmes', '{}')); return a.data === hojeLocal() ? a.feitos || [] : []; } catch (e) { return []; } }
+  function marcarAlarme(h) { var f = alarmesFeitos(); f.push(h); salvar('alarmes', JSON.stringify({ data: hojeLocal(), feitos: f })); }
+
+  function verificarAlarmes() {
+    if (alarme.atual) return;
+    var agora = agoraMin(), feitos = alarmesFeitos(), grupos = {};
+    cortesDeHoje().forEach(function (c) { (grupos[c.corte] = grupos[c.corte] || []).push(c); });
+    Object.keys(grupos).sort().some(function (h) {
+      var m = emMin(h);
+      if (feitos.indexOf(h) >= 0 || agora < m || agora > m + 30) return false; // só até 30 min depois do corte
+      dispararAlarme(h, grupos[h]); return true;
+    });
+  }
+
+  function dispararAlarme(hora, itens) {
+    alarme.atual = hora; marcarAlarme(hora);
+    $('alTit').textContent = '⏰ Corte ' + hora;
+    var lista = $('alLista'); lista.innerHTML = '';
+    itens.forEach(function (it) {
+      var l = el('div', 'al-linha'), n = el('span', null, it.canal);
+      n.appendChild(el('small', null, nomeLoja(it.loja))); n.style.color = '';
+      var i = el('input'); i.type = 'number'; i.inputMode = 'numeric'; i.min = '0'; i.placeholder = '–';
+      i.dataset.loja = it.loja; i.dataset.canal = it.canal;
+      l.style.borderLeft = '5px solid ' + corLoja(it.loja); l.style.paddingLeft = '8px';
+      l.appendChild(n); l.appendChild(i); lista.appendChild(l);
+    });
+    $('alarme').classList.add('ativo', 'tocando');
+    tocarAlarme();
+    try {
+      if (window.Notification && Notification.permission === 'granted') {
+        var nt = new Notification('⏰ Corte ' + hora, { body: itens.map(function (i) { return i.canal + ' ' + nomeLoja(i.loja); }).join(' · ') + '\nInforme a quantidade de pedidos.', requireInteraction: true, tag: 'corte-' + hora });
+        nt.onclick = function () { window.focus(); this.close(); };
+      }
+    } catch (e) {}
+  }
+  function tocarAlarme() {
+    pararSomAlarme();
+    function toque() { [0, .18, .36].forEach(function (a) { bip(880, .14, 'square', a, .5); }); vibrar([300, 100, 300]); }
+    toque(); alarme.som = setInterval(toque, 1500);
+  }
+  function pararSomAlarme() { if (alarme.som) { clearInterval(alarme.som); alarme.som = null; } $('alarme').classList.remove('tocando'); }
+  function fecharAlarme() { pararSomAlarme(); $('alarme').classList.remove('ativo'); alarme.atual = null; }
+
+  $('alarme').addEventListener('click', pararSomAlarme);
+  $('alarme').addEventListener('keydown', pararSomAlarme);
+  $('alDepois').onclick = function (e) { e.stopPropagation(); fecharAlarme(); };
+  $('alOk').onclick = function (e) {
+    e.stopPropagation();
+    var inputs = [].slice.call($('alLista').querySelectorAll('input')), envios = [];
+    inputs.forEach(function (i) { if (i.value.trim() !== '') envios.push({ loja: i.dataset.loja, canal: i.dataset.canal, aEnviar: i.value.trim(), operador: st.operador || '' }); });
+    if (envios.length < inputs.length && !confirm('Algum canal ficou sem quantidade. Confirmar assim mesmo?')) return;
+    var b = this; b.disabled = true; b.textContent = 'Salvando…';
+    Promise.all(envios.map(function (d) { return api('salvarAEnviar', d); })).then(function (rs) {
+      var erro = rs.filter(function (r) { return !r.ok; })[0];
+      if (erro) alert(erro.erro || 'Não salvou.');
+      fecharAlarme();
+      if ($('telaFech').classList.contains('ativa')) carregarFechamento();
+    }).catch(function () { alert('Sem conexão: não salvou. Tente de novo.'); })
+      .then(function () { b.disabled = false; b.textContent = 'Confirmar'; });
+  };
+
+  // Som e notificação precisam de um clique na página antes (regra do navegador).
+  function precisaAtivar() { return ehPC && (!audio || (window.Notification && Notification.permission === 'default')); }
+  function ativarAlarmes() {
+    liberarAudio();
+    try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+    $('ativarAlarme').style.display = 'none';
+  }
+  $('ativarAlarme').onclick = ativarAlarmes;
+  document.addEventListener('click', function () { if (!audio) liberarAudio(); if (!precisaAtivar()) $('ativarAlarme').style.display = 'none'; }, true);
+  setTimeout(function () { if (precisaAtivar()) $('ativarAlarme').style.display = 'block'; }, 1500);
+
+  // Mantém horários do dia atualizados (outro aparelho pode ter preenchido o Meli) e confere os cortes.
+  setInterval(function () {
+    if (!st.pin || !st.setup) return;
+    api('setup').then(function (r) {
+      if (!r.ok) return;
+      st.setup.canais = r.canais; st.setup.antecedencia = r.antecedencia; st.setup.antecedenciaColeta = r.antecedenciaColeta;
+      st.codigos = r.codigos || {}; st.horarios = r.horarios || {}; st.codigosData = r.data; guardarDia();
+    }).catch(function () {});
+  }, 180000);
+  setInterval(verificarAlarmes, 15000);
 
   /* ================= Fechamento do dia ================= */
   var fech = null;
