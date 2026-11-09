@@ -166,7 +166,9 @@
       </div>
 
       <h2>Por ano e loja</h2>
-      <div class="card rolar"><table id="fAnos"></table></div>
+      <div class="card rolar"><table id="fAnos"></table>
+        <div class="nota">Diferença = Cobrado − Previsto, só dos envios já cobrados (negativo = o ML cobrou menos que o previsto). Os envios ainda sem cobrança ficam em "A cobrar".</div>
+      </div>
 
       <h2>Cobrado acima do previsto</h2>
       <div class="card rolar"><table id="fDif"></table>
@@ -481,10 +483,10 @@
   function fullFiltrado() { return (st.dados.full || []).filter(function (f) { return st.loja === 'todas' || f[1] === st.loja; }); }
   function custo(f) { return f[4] == null ? f[3] : f[4]; }
   function somaFull(lista) {
-    var r = { envios: 0, itens: 0, custo: 0, previsto: 0, cobrado: 0, difCob: 0, nCob: 0, prazoOk: 0, prazoN: 0 };
+    var r = { envios: 0, itens: 0, custo: 0, previsto: 0, prevCob: 0, aCobrar: 0, cobrado: 0, difCob: 0, nCob: 0, prazoOk: 0, prazoN: 0 };
     lista.forEach(function (f) {
       r.envios++; r.itens += f[5]; r.custo += custo(f); r.previsto += f[3];
-      if (f[4] != null) { r.cobrado += f[4]; r.difCob += f[4] - f[3]; r.nCob++; }
+      if (f[4] != null) { r.cobrado += f[4]; r.prevCob += f[3]; r.difCob += f[4] - f[3]; r.nCob++; } else r.aCobrar += f[3];
       if (f[7] != null) { r.prazoN++; r.prazoOk += f[7]; }
     });
     return r;
@@ -509,7 +511,9 @@
     }
     box.appendChild(card('Envios', ano.envios, fmt(ano.envios), antes.envios, fmt(antes.envios)));
     box.appendChild(card('Itens enviados', ano.itens, fmt(ano.itens), antes.itens, fmt(antes.itens)));
-    box.appendChild(card('Custo do Full', ano.custo, reais(ano.custo), antes.custo, reais(antes.custo), true));
+    var kc = card('Custo do Full', ano.custo, reais(ano.custo), antes.custo, reais(antes.custo), true);
+    if (ano.aCobrar) kc.appendChild(el('div', 'cmp', 'inclui ' + reais(ano.aCobrar) + ' previstos, ainda a cobrar'));
+    box.appendChild(kc);
     var cpi = ano.itens ? ano.custo / ano.itens : 0, cpiA = antes.itens ? antes.custo / antes.itens : 0;
     var k4 = card('Custo por item', cpi, reais(cpi), cpiA || null, reais(cpiA), true);
     if (ano.prazoN) k4.appendChild(el('div', 'cmp', Math.round(ano.prazoOk / ano.prazoN * 100) + '% dos envios preparados no prazo'));
@@ -534,7 +538,7 @@
 
     // Por ano e loja
     var tb = $('fAnos'); tb.innerHTML = '';
-    var cab2 = el('tr'); ['', 'Envios', 'Itens', 'Previsto', 'Cobrado', 'Diferença', 'Custo/item', 'No prazo'].forEach(function (h) { cab2.appendChild(el('th', null, h)); }); tb.appendChild(cab2);
+    var cab2 = el('tr'); ['', 'Envios', 'Itens', 'Previsto (já cobrados)', 'Cobrado', 'Diferença', 'A cobrar (previsto)', 'Custo/item', 'No prazo'].forEach(function (h) { cab2.appendChild(el('th', null, h)); }); tb.appendChild(cab2);
     var anos = {}; todos.forEach(function (f) { anos[f[0].slice(0, 4)] = 1; });
     var lojas = []; todos.forEach(function (f) { if (lojas.indexOf(f[1]) < 0) lojas.push(f[1]); });
     lojas.sort(function (a, b) { var o = ['TURPIAL', 'EMPORIO', 'MULTI']; return o.indexOf(a) - o.indexOf(b); });
@@ -556,8 +560,8 @@
   }
   function linhaAno(tb, nome, cls, r) {
     var tr = el('tr', cls);
-    [nome, fmt(r.envios), fmt(r.itens), reais(r.previsto), reais(r.cobrado), (r.difCob >= 0 ? '+' : '') + reais(r.difCob).replace('R$ -', '-R$ '),
-      r.itens ? reais(r.custo / r.itens) : '–', r.prazoN ? Math.round(r.prazoOk / r.prazoN * 100) + '%' : '–'].forEach(function (v) { tr.appendChild(el('td', null, v)); });
+    [nome, fmt(r.envios), fmt(r.itens), reais(r.prevCob), reais(r.cobrado), (r.difCob >= 0 ? '+' : '') + reais(r.difCob).replace('R$ -', '-R$ '),
+      r.aCobrar ? reais(r.aCobrar) : '–', r.itens ? reais(r.custo / r.itens) : '–', r.prazoN ? Math.round(r.prazoOk / r.prazoN * 100) + '%' : '–'].forEach(function (v) { tr.appendChild(el('td', null, v)); });
     tb.appendChild(tr);
   }
 
