@@ -165,6 +165,7 @@
   body.pc #erro .toque::after { content: ' (ou tecle Esc)'; }
   body.pc #telaFech { max-width: 900px; }
   /* Resumo do fechamento */
+  #resumo:empty { display: none; }
   #resumo { margin: 10px 12px 4px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); }
   .rs-topo { display: flex; align-items: baseline; gap: 8px; }
   .rs-topo b { font-size: 20px; }
@@ -274,12 +275,16 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   /* ---------- comunicação com a planilha ---------- */
   function api(acao, dados) {
     var corpo = Object.assign({ acao: acao, pin: st.pin }, dados || {});
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var limite = ctrl ? setTimeout(function () { ctrl.abort(); }, 20000) : null;
     return fetch(API_URL, {
+      signal: ctrl ? ctrl.signal : undefined,
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita a checagem prévia de CORS
       body: JSON.stringify(corpo),
       redirect: 'follow'
     }).then(function (r) {
+      clearTimeout(limite);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (j) {
@@ -308,7 +313,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     api('setup').then(function (r) {
       if (!r.ok) { $('avisoSetup').textContent = r.erro || 'Erro ao carregar.'; return; }
       st.setup = r;
-      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores, antecedencia: r.antecedencia }));
+      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores, antecedencia: r.antecedencia, antecedenciaColeta: r.antecedenciaColeta }));
       st.codigos = r.codigos || {}; st.horarios = r.horarios || {}; st.codigosData = r.data; guardarDia();
       montarSetup();
       desenharCodigos($('codigosInicio'), r.lojas);
@@ -605,7 +610,13 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     var c = ((st.setup && st.setup.canais) || []).filter(function (x) { return x.loja === loja && ehMeli(x.canal); })[0];
     return (c && c.tipoEnvio) || 'Coleta';
   }
-  function rotuloMax(tipo) { return /postagem/i.test(tipo || '') ? 'Postagem máx.' : 'Coleta máx.'; }
+  function ehPostagem(tipo) { return /postagem/i.test(tipo || ''); }
+  function rotuloMax(tipo) { return ehPostagem(tipo) ? 'Postagem até' : 'Coleta a partir de'; }
+  /** Meli: postagem → corte = horário − 2h58; coleta → corte = horário − 0h58 (valores da aba Config). */
+  function antecedencia(tipo, fonte) {
+    fonte = fonte || {};
+    return ehPostagem(tipo) ? (fonte.antecedencia || '02:58') : (fonte.antecedenciaColeta || '00:58');
+  }
 
   /** Tela inicial: um quadro por loja com o código do dia e o horário máximo de hoje do Meli. */
   function desenharCodigos(box, lojas) {
@@ -615,7 +626,6 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     var grade = el('div', 'cods');
     var hoje = st.codigosData === hojeLocal();
     var codigos = (hoje && st.codigos) || {}, horarios = (hoje && st.horarios) || {};
-    var antec = (st.setup && st.setup.antecedencia) || '02:58';
     lojas.forEach(function (l) {
       var q = el('div', 'cod'); q.style.setProperty('--cor', l.cor || '#3b82f6');
       q.appendChild(el('small', null, l.nome));
@@ -633,12 +643,12 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       b.onclick = function () { var v = i.value.trim(); if (v) copiar(v, b); };
       q.appendChild(b);
 
-      q.appendChild(el('label', 'cod-rot', rotuloMax(tipoMeli(l.codigo)) + ' hoje'));
+      q.appendChild(el('label', 'cod-rot', rotuloMax(tipoMeli(l.codigo)) + ' (hoje)'));
       var t = el('input'); t.type = 'time'; t.className = 'hora'; t.value = horarios[l.codigo] || '';
       var corte = el('div', 'cod-corte');
       function mostrarCorte() {
         var m = emMin(t.value);
-        corte.textContent = m == null ? '⚠️ Preencha o horário de hoje' : 'Corte às ' + hhmm(m - emMin(antec));
+        corte.textContent = m == null ? '⚠️ Preencha o horário de hoje' : 'Corte às ' + hhmm(m - emMin(antecedencia(tipoMeli(l.codigo), st.setup)));
         q.classList.toggle('sem-hora', m == null);
       }
       t.onchange = function () {
@@ -681,7 +691,10 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       if (!r.ok) { $('fAtual').textContent = r.erro || 'Erro ao carregar.'; return; }
       fech = r; desenharFechamento();
       $('fAtual').textContent = 'Atualizado às ' + hhmm(agoraMin());
-    }).catch(function (e) { if (String(e.message) !== 'PIN') $('fAtual').textContent = 'Sem conexão. Toque em Atualizar.'; });
+    }).catch(function (e) {
+      if (String(e.message) === 'PIN') return;
+      $('fAtual').textContent = e.name === 'AbortError' ? 'A planilha demorou para responder. Toque em Atualizar.' : 'Sem conexão. Toque em Atualizar.';
+    });
   }
 
   function horariosDoCanal(loja, c) {
@@ -690,7 +703,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (ehDiario(c.coletaMax) || ehDiario(c.corte)) {
       var base = (meli && meli.coletaMaxDia) || c.coletaMaxDia || '';
       coleta = base;
-      corte = base ? hhmm(emMin(base) - emMin(fech.antecedencia || '02:58')) : '';
+      corte = base ? hhmm(emMin(base) - emMin(antecedencia(meli ? meli.tipoEnvio : c.tipoEnvio, fech))) : '';
     }
     return { coleta: coleta, corte: corte };
   }
@@ -808,7 +821,8 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       p.appendChild(document.createTextNode('Próximo: ' + prox.txt + ' · ' + prox.rot + ' '));
       p.appendChild(el('b', null, prox.hora));
       p.appendChild(document.createTextNode(' '));
-      p.appendChild(el('span', dif < 0 ? 'atraso' : dif <= 30 ? 'perto' : '', dif < 0 ? '(passou há ' + fmtDur(-dif) + ')' : '(faltam ' + fmtDur(dif) + ')'));
+      var aguarda = dif < 0 && prox.rot === 'coleta';
+      p.appendChild(el('span', aguarda ? 'perto' : dif < 0 ? 'atraso' : dif <= 30 ? 'perto' : '', aguarda ? '(aguardando a coleta)' : dif < 0 ? '(passou há ' + fmtDur(-dif) + ')' : '(faltam ' + fmtDur(dif) + ')'));
       box.appendChild(p);
     }
     box.appendChild(tab);
@@ -838,12 +852,15 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     var horas = el('div', 'horas');
     if (h.corte || h.coleta) {
       horas.appendChild(document.createTextNode('Corte ')); horas.appendChild(el('b', null, h.corte || '–'));
-      horas.appendChild(document.createTextNode(/postagem/i.test(c.tipoEnvio) ? ' · Postagem ' : ' · Coleta ')); horas.appendChild(el('b', null, h.coleta || '–'));
+      if (h.coleta) { horas.appendChild(document.createTextNode(ehPostagem(c.tipoEnvio) ? ' · Postagem até ' : ' · Coleta a partir de ')); horas.appendChild(el('b', null, h.coleta)); }
+      else horas.appendChild(document.createTextNode(' · ' + (ehPostagem(c.tipoEnvio) ? 'postar' : 'coleta') + ' no dia'));
       var semAlerta = c.coletado || s.cls === 'st-zero';
       var cd = contagemRegressiva(semAlerta ? '' : (agoraMin() <= emMin(h.corte) ? h.corte : h.coleta), false);
+      // Coleta "a partir de": depois do horário o caminhão pode chegar a qualquer momento — não é atraso.
+      if (cd && cd.cls === 'atraso' && !ehPostagem(c.tipoEnvio) && h.coleta && agoraMin() >= emMin(h.coleta)) cd = { txt: 'aguardando a coleta', cls: 'perto' };
       if (cd && cd.txt) { horas.appendChild(el('br')); horas.appendChild(el('span', 'cd ' + cd.cls, cd.txt)); }
     } else if (diario) {
-      horas.textContent = 'Informe o horário máx. do Meli na tela inicial.';
+      horas.textContent = 'Informe o horário do Meli na tela inicial.';
     }
     corpo.appendChild(horas);
 
