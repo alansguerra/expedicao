@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gestão · Expedição</title>
+<style>
+  :root {
+    --bg: #111317; --card: #1b1e25; --borda: #2a2f3a; --txt: #e9ecf1; --sub: #9aa3b2; --mudo: #6b7383;
+    --acento: #3b82f6; --sobe: #5fd38d; --desce: #ff8a8a;
+    /* séries por canal (paleta validada para fundo escuro) */
+    --c-meli: #c98500; --c-flex: #3987e5; --c-shopee: #d95926; --c-balcao: #199e70; --c-outros: #9085e9;
+    /* séries por loja */
+    --l-turpial: #3987e5; --l-emporio: #e66767;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+  button, input { font: inherit; color: inherit; }
+  .topo { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--borda); }
+  .topo .wrap { display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+  .topo h1 { font-size: 18px; margin: 0; flex: 1; }
+  .topo h1 span { display: block; font-size: 12px; font-weight: 400; color: var(--sub); }
+  .btn { border: 1px solid var(--borda); background: var(--card); border-radius: 10px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+  .btn.pri { background: var(--acento); border-color: var(--acento); }
+
+  .filtros { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 14px 0 6px; }
+  .grupo { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .grupo small { color: var(--sub); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin-right: 2px; }
+  .chip { border: 1px solid var(--borda); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--sub); }
+  .chip.on { background: #26324a; border-color: var(--acento); color: var(--txt); font-weight: 700; }
+
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); margin: 26px 0 10px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .kpi small { color: var(--sub); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .kpi .v { font-size: 32px; font-weight: 800; margin: 2px 0 6px; font-variant-numeric: tabular-nums; }
+  .kpi .cmp { font-size: 13px; color: var(--sub); }
+  .kpi .cmp b { font-variant-numeric: tabular-nums; }
+  .sobe { color: var(--sobe); } .desce { color: var(--desce); }
+
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 14px; }
+  .card-cab { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px; }
+  .card-cab b { font-size: 15px; flex: 1; }
+  .legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--sub); margin: 8px 0 0; }
+  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { fill: var(--sub); font-size: 11px; font-family: inherit; }
+  .grade line { stroke: var(--borda); stroke-width: 1; }
+  .alvo { fill: transparent; cursor: pointer; }
+  .alvo:hover { fill: rgba(255,255,255,.04); }
+
+  #dica { position: fixed; z-index: 10; pointer-events: none; background: #0b0d10; border: 1px solid var(--borda); border-radius: 10px;
+    padding: 8px 10px; font-size: 13px; min-width: 150px; display: none; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  #dica b { display: block; margin-bottom: 4px; }
+  #dica .l { display: flex; gap: 8px; justify-content: space-between; color: var(--sub); }
+  #dica .l span:last-child { color: var(--txt); font-variant-numeric: tabular-nums; }
+  #dica .l i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: right; font-size: 12px; color: var(--sub); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--borda); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.loja td { font-weight: 800; background: rgba(255,255,255,.02); }
+  tr.total td { font-weight: 800; border-top: 2px solid var(--borda); }
+  td .var { font-size: 12px; margin-left: 4px; }
+  .rolar { overflow-x: auto; }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .nota { font-size: 12px; color: var(--mudo); margin-top: 8px; }
+
+  #telaPin { max-width: 360px; margin: 18vh auto 0; padding: 0 16px; }
+  #telaPin input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--borda); background: var(--card); font-size: 20px; margin: 8px 0 12px; }
+  #telaPin .btn { width: 100%; padding: 12px; }
+  #aviso { color: var(--desce); font-size: 14px; margin-top: 10px; min-height: 20px; }
+  #carregando { color: var(--sub); padding: 40px 0; text-align: center; }
+
+  @media (max-width: 760px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .duas { grid-template-columns: 1fr; }
+    .kpi .v { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="telaPin" style="display:none">
+  <h1 style="font-size:20px">Gestão · Expedição</h1>
+  <div style="color:var(--sub);font-size:14px">PIN de gestão</div>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+  <button class="btn pri" id="btnPin">Entrar</button>
+  <div id="aviso"></div>
+</div>
+
+<div id="painel" style="display:none">
+  <div class="topo"><div class="wrap">
+    <h1>Gestão · Pedidos<span id="gerado">Carregando…</span></h1>
+    <button class="btn" id="btnAtualizar">Atualizar</button>
+  </div></div>
+  <div class="wrap">
+    <div class="filtros">
+      <div class="grupo" id="fLoja"><small>Loja</small></div>
+      <div class="grupo" id="fCanal"><small>Canal</small></div>
+    </div>
+    <div id="carregando">Carregando os pedidos…</div>
+    <div id="conteudo" style="display:none">
+      <h2>Resumo</h2>
+      <div class="kpis" id="kpis"></div>
+
+      <h2>Evolução</h2>
+      <div class="card">
+        <div class="card-cab">
+          <b id="tGrafico">Pedidos por dia</b>
+          <div class="grupo" id="fGrao"></div>
+          <div class="grupo" id="fSeparar"><small>Separar por</small></div>
+        </div>
+        <div id="grafico"></div>
+        <div class="legenda" id="legenda"></div>
+      </div>
+
+      <h2>Por loja e canal</h2>
+      <div class="card rolar"><table id="tabela"></table></div>
+
+      <h2>Picos</h2>
+      <div class="duas">
+        <div class="card">
+          <div class="card-cab"><b>Média por dia da semana</b></div>
+          <div id="gSemana"></div>
+          <div class="nota">Últimos 12 meses, contando só os dias em que houve expedição.</div>
+        </div>
+        <div class="card">
+          <div class="card-cab"><b>Os 10 dias com mais pedidos</b></div>
+          <table id="topDias"></table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:10px">
+        <div class="card-cab"><b>Horário das bipagens</b></div>
+        <div id="gHoras"></div>
+        <div class="nota" id="notaHoras"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="dica"></div>
+
+<script>
+(function () {
+  'use strict';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-BE3Cx9Tw6pjKMAYTpzVAX2nqEs33ty_3eaGXmaXKRgz/exec';
+  var CANAIS = ['Meli', 'Flex', 'Shopee', 'Balcão', 'Outros'];             // ordem fixa das cores
+  var COR_CANAL = { 'Meli': 'var(--c-meli)', 'Flex': 'var(--c-flex)', 'Shopee': 'var(--c-shopee)', 'Balcão': 'var(--c-balcao)', 'Outros': 'var(--c-outros)' };
+  var COR_LOJA = { 'TURPIAL': 'var(--l-turpial)', 'EMPORIO': 'var(--l-emporio)' };
+  var DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  function ler(k, p) { try { var v = localStorage.getItem('gest_' + k); return v == null ? p : v; } catch (e) { return p; } }
+  function salvar(k, v) { try { localStorage.setItem('gest_' + k, v); } catch (e) {} }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
+
+  var st = { pin: ler('pin', ''), dados: null, loja: ler('loja', 'todas'), canal: ler('canal', 'todos'), grao: ler('grao', 'dia'), separar: ler('separar', 'canal') };
+
+  /* ---------- datas (sempre em dia local, formato yyyy-mm-dd) ---------- */
+  function d2s(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function s2d(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function soma(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function segunda(d) { var x = new Date(d); var w = (x.getDay() + 6) % 7; x.setDate(x.getDate() - w); return x; }
+  function br(s) { var p = s.split('-'); return p[2] + '/' + p[1]; }
+
+  /* ---------- API ---------- */
+  function api(dados) {
+    return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
+      body: JSON.stringify(Object.assign({ acao: 'gestao', pin: st.pin }, dados || {})) }).then(function (r) { return r.json(); });
+  }
+  function carregar(forcar) {
+    if (!st.pin) return pedirPin('');
+    $('painel').style.display = ''; $('telaPin').style.display = 'none';
+    $('gerado').textContent = 'Atualizando…';
+    var cache = null; try { cache = JSON.parse(ler('dados', 'null')); } catch (e) {}
+    if (cache && !st.dados) { st.dados = preparar(cache); desenhar(); }
+    api({ atualizar: !!forcar }).then(function (r) {
+      if (r.pinInvalido) return pedirPin(r.erro);
+      if (!r.ok) { $('gerado').textContent = r.erro || 'Erro ao carregar.'; return; }
+      salvar('dados', JSON.stringify(r));
+      st.dados = preparar(r); desenhar();
+    }).catch(function () { $('gerado').textContent = 'Sem conexão. Toque em Atualizar.'; });
+  }
+  function pedirPin(msg) {
+    $('painel').style.display = 'none'; $('telaPin').style.display = '';
+    $('aviso').textContent = msg || ''; $('pin').value = ''; $('pin').focus();
+  }
+  $('btnPin').onclick = function () { st.pin = $('pin').value.trim(); salvar('pin', st.pin); carregar(false); };
+  $('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnPin').click(); });
+  $('btnAtualizar').onclick = function () { carregar(true); };
+
+  /* ---------- dados ---------- */
+  function canalGrupo(c) { var x = CANAIS.filter(function (k) { return k.toLowerCase() === String(c).toLowerCase(); })[0]; return x || 'Outros'; }
+  function preparar(r) {
+    r.serie = r.series.map(function (k) { var p = k.split('|'); return { loja: p[0], canal: canalGrupo(p[1]) }; });
+    r.lista = Object.keys(r.dias).sort();
+    return r;
+  }
+  function nomeLoja(cod) { var l = (st.dados.lojas || []).filter(function (x) { return x.codigo === cod; })[0]; return l ? l.nome : cod; }
+  function passaFiltro(s) { return (st.loja === 'todas' || s.loja === st.loja) && (st.canal === 'todos' || s.canal === st.canal); }
+  /** Pedidos de um dia, já filtrados. grupo: 'canal' | 'loja' | undefined (total). */
+  function doDia(dia, grupo) {
+    var l = st.dados.dias[dia], out = grupo ? {} : 0;
+    if (!l) return out;
+    for (var i = 0; i < l.length; i++) {
+      var s = st.dados.serie[i];
+      if (!l[i] || !passaFiltro(s)) continue;
+      if (!grupo) out += l[i]; else { var k = s[grupo]; out[k] = (out[k] || 0) + l[i]; }
+    }
+    return out;
+  }
+  function intervalo(ini, fim, grupo) { // datas inclusive
+    var tot = grupo ? {} : 0;
+    for (var d = new Date(ini); d <= fim; d = soma(d, 1)) {
+      var x = doDia(d2s(d), grupo);
+      if (!grupo) tot += x; else for (var k in x) tot[k] = (tot[k] || 0) + x[k];
+    }
+    return tot;
+  }
+
+  /* ---------- filtros ---------- */
+  function chips(box, rotulo, opcoes, atual, aoMudar) {
+    box.innerHTML = ''; if (rotulo) box.appendChild(el('small', null, rotulo));
+    opcoes.forEach(function (o) {
+      var b = el('button', 'chip' + (o[0] === atual ? ' on' : ''), o[1]);
+      b.onclick = function () { aoMudar(o[0]); };
+      box.appendChild(b);
+    });
+  }
+  function desenharFiltros() {
+    var lojas = [['todas', 'Todas']].concat((st.dados.lojas || []).filter(function (l) { return st.dados.serie.some(function (s) { return s.loja === l.codigo; }); }).map(function (l) { return [l.codigo, l.nome]; }));
+    chips($('fLoja'), 'Loja', lojas, st.loja, function (v) { st.loja = v; salvar('loja', v); desenhar(); });
+    chips($('fCanal'), 'Canal', [['todos', 'Todos']].concat(CANAIS.map(function (c) { return [c, c]; })), st.canal, function (v) { st.canal = v; salvar('canal', v); desenhar(); });
+    chips($('fGrao'), null, [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano']], st.grao, function (v) { st.grao = v; salvar('grao', v); desenhar(); });
+    chips($('fSeparar'), 'Separar por', [['canal', 'Canal'], ['loja', 'Loja']], st.separar, function (v) { st.separar = v; salvar('separar', v); desenhar(); });
+  }
+
+  /* ---------- resumo (KPIs) ---------- */
+  function variacao(atual, antes) {
+    if (!antes) return atual ? { txt: 'novo', cls: '' } : { txt: '–', cls: '' };
+    var p = (atual - antes) / antes * 100;
+    return { txt: (p >= 0 ? '▲ ' : '▼ ') + Math.abs(p).toFixed(0) + '%', cls: p >= 0 ? 'sobe' : 'desce' };
+  }
+  function kpi(titulo, atual, comps) {
+    var k = el('div', 'kpi');
+    k.appendChild(el('small', null, titulo));
+    k.appendChild(el('div', 'v', fmt(atual)));
+    comps.forEach(function (c) {
+      var v = variacao(atual, c[1]), linha = el('div', 'cmp');
+      var b = el('b', v.cls, v.txt); linha.appendChild(b);
+      linha.appendChild(document.createTextNode(' vs ' + c[0] + ' (' + fmt(c[1]) + ')'));
+      k.appendChild(linha);
+    });
+    return k;
+  }
+  function desenharKpis() {
+    var hoje = s2d(st.dados.hoje), box = $('kpis'); box.innerHTML = '';
+    var umAno = function (d) { return soma(d, -364); }; // mesmo dia da semana, um ano antes
+    // Hoje
+    box.appendChild(kpi('Hoje', intervalo(hoje, hoje), [['sem. passada', intervalo(soma(hoje, -7), soma(hoje, -7))], ['ano passado', intervalo(umAno(hoje), umAno(hoje))]]));
+    // Semana até hoje
+    var s0 = segunda(hoje);
+    box.appendChild(kpi('Semana', intervalo(s0, hoje), [['sem. passada', intervalo(soma(s0, -7), soma(hoje, -7))], ['ano passado', intervalo(umAno(s0), umAno(hoje))]]));
+    // Mês até hoje
+    var m0 = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    var mA = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    var mAfim = new Date(mA.getFullYear(), mA.getMonth(), Math.min(hoje.getDate(), new Date(mA.getFullYear(), mA.getMonth() + 1, 0).getDate()));
+    var mY = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1), mYfim = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
+    box.appendChild(kpi('Mês', intervalo(m0, hoje), [['mês passado', intervalo(mA, mAfim)], ['ano passado', intervalo(mY, mYfim)]]));
+    // Ano até hoje
+    var a0 = new Date(hoje.getFullYear(), 0, 1), aY = new Date(hoje.getFullYear() - 1, 0, 1), aYfim = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
+    box.appendChild(kpi('Ano', intervalo(a0, hoje), [['ano passado', intervalo(aY, aYfim)]]));
+  }
+
+  /* ---------- gráfico de barras empilhadas ---------- */
+  function periodos() {
+    var hoje = s2d(st.dados.hoje), out = [];
+    if (st.grao === 'dia') {
+      for (var i = 29; i >= 0; i--) { var d = soma(hoje, -i); out.push({ rot: br(d2s(d)), dica: DIAS_SEM[d.getDay()] + ' ' + br(d2s(d)), ini: d, fim: d }); }
+    } else if (st.grao === 'semana') {
+      var s = segunda(hoje);
+      for (var j = 15; j >= 0; j--) { var a = soma(s, -7 * j), b = soma(a, 6); out.push({ rot: br(d2s(a)), dica: 'Semana ' + br(d2s(a)) + ' a ' + br(d2s(b < hoje ? b : hoje)), ini: a, fim: b < hoje ? b : hoje }); }
+    } else if (st.grao === 'mes') {
+      for (var m = 23; m >= 0; m--) {
+        var ini = new Date(hoje.getFullYear(), hoje.getMonth() - m, 1), fim = new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
+        out.push({ rot: MESES[ini.getMonth()] + (ini.getMonth() === 0 || m === 23 ? '/' + String(ini.getFullYear()).slice(2) : ''), dica: MESES[ini.getMonth()] + '/' + ini.getFullYear(), ini: ini, fim: fim < hoje ? fim : hoje });
+      }
+    } else {
+      var primeiro = s2d(st.dados.lista[0] || st.dados.hoje).getFullYear();
+      for (var y = primeiro; y <= hoje.getFullYear(); y++) { var yf = new Date(y, 11, 31); out.push({ rot: String(y), dica: String(y) + (y === hoje.getFullYear() ? ' (até hoje)' : ''), ini: new Date(y, 0, 1), fim: yf < hoje ? yf : hoje }); }
+    }
+    return out;
+  }
+  function grupos() {
+    if (st.separar === 'loja') return (st.dados.lojas || []).map(function (l) { return { chave: l.codigo, nome: l.nome, cor: COR_LOJA[l.codigo] || 'var(--c-outros)' }; })
+      .filter(function (g) { return st.dados.serie.some(function (s) { return s.loja === g.chave; }); });
+    return CANAIS.map(function (c) { return { chave: c, nome: c, cor: COR_CANAL[c] }; });
+  }
+  function desenharGrafico() {
+    var ps = periodos(), gs = grupos();
+    var titulos = { dia: 'Pedidos por dia · últimos 30 dias', semana: 'Pedidos por semana · últimas 16', mes: 'Pedidos por mês · últimos 24', ano: 'Pedidos por ano' };
+    $('tGrafico').textContent = titulos[st.grao];
+    ps.forEach(function (p) { p.v = intervalo(p.ini, p.fim, st.separar); p.tot = 0; for (var k in p.v) p.tot += p.v[k]; });
+    var max = Math.max.apply(null, ps.map(function (p) { return p.tot; }).concat([1]));
+    var passo = escala(max), topo = Math.ceil(max / passo) * passo;
+    var W = Math.max(320, Math.round($('grafico').clientWidth || 1000)), H = W < 600 ? 240 : 300, mE = 44, mD = 8, mT = 10, mB = 26, aw = W - mE - mD, ah = H - mT - mB;
+    var bw = aw / ps.length, larg = Math.max(2, Math.min(42, bw * 0.68));
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + titulos[st.grao] + '"><g class="grade">';
+    for (var v = 0; v <= topo; v += passo) { var y = mT + ah - v / topo * ah; svg += '<line x1="' + mE + '" x2="' + (W - mD) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (mE - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + fmt(v) + '</text>'; }
+    svg += '</g>';
+    var cada = Math.ceil(ps.length / Math.max(4, Math.floor(aw / 70)));
+    ps.forEach(function (p, i) {
+      var x = mE + i * bw + (bw - larg) / 2, base = mT + ah, vis = gs.filter(function (g) { return p.v[g.chave]; });
+      vis.forEach(function (g, j) {
+        var hh = p.v[g.chave] / topo * ah, y0 = base - hh, ultimo = j === vis.length - 1;
+        // 2px de espaço entre um segmento e o de cima; só o segmento do topo tem cantos arredondados
+        svg += caminho(x, y0 + (ultimo ? 0 : 2), larg, Math.max(0, hh - (ultimo ? 0 : 2)), ultimo ? Math.min(4, larg / 2) : 0, g.cor);
+        base = y0;
+      });
+      if (i % cada === 0 || i === ps.length - 1) svg += '<text x="' + (mE + i * bw + bw / 2) + '" y="' + (H - 8) + '" text-anchor="middle">' + p.rot + '</text>';
+      svg += '<rect class="alvo" data-i="' + i + '" x="' + (mE + i * bw) + '" y="' + mT + '" width="' + bw + '" height="' + ah + '"/>';
+    });
+    svg += '</svg>';
+    var box = $('grafico'); box.innerHTML = svg;
+    [].forEach.call(box.querySelectorAll('.alvo'), function (r) {
+      r.addEventListener('mousemove', function (e) { var p = ps[+r.dataset.i]; mostrarDica(e, p.dica, gs.map(function (g) { return [g.nome, p.v[g.chave] || 0, g.cor]; }), p.tot); });
+      r.addEventListener('mouseleave', esconderDica);
+      r.addEventListener('click', function (e) { var p = ps[+r.dataset.i]; mostrarDica(e, p.dica, gs.map(function (g) { return [g.nome, p.v[g.chave] || 0, g.cor]; }), p.tot); });
+    });
+    var leg = $('legenda'); leg.innerHTML = '';
+    gs.forEach(function (g) { if (!ps.some(function (p) { return p.v[g.chave]; })) return; var s = el('span'); var i = el('i'); i.style.background = g.cor; s.appendChild(i); s.appendChild(document.createTextNode(g.nome)); leg.appendChild(s); });
+  }
+  function caminho(x, y, w, h, r, cor) { // barra com cantos arredondados só em cima
+    if (h <= 0) return '';
+    r = Math.min(r, h);
+    return '<path fill="' + cor + '" d="M' + x + ',' + (y + h) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + 'V' + (y + h) + 'Z"/>';
+  }
+  function escala(max) { var b = Math.pow(10, Math.floor(Math.log10(max))), n = max / b; return (n <= 2 ? 0.5 : n <= 5 ? 1 : 2) * b || 1; }
+
+  function mostrarDica(e, titulo, linhas, total) {
+    var d = $('dica'); d.innerHTML = '';
+    d.appendChild(el('b', null, titulo));
+    linhas.forEach(function (l) { if (!l[1]) return; var r = el('div', 'l'), a = el('span'), i = el('i'); i.style.background = l[2]; a.appendChild(i); a.appendChild(document.createTextNode(l[0])); r.appendChild(a); r.appendChild(el('span', null, fmt(l[1]))); d.appendChild(r); });
+    if (total != null) { var t = el('div', 'l'); t.style.marginTop = '4px'; t.appendChild(el('span', null, 'Total')); var v = el('span', null, fmt(total)); v.style.fontWeight = '800'; t.appendChild(v); d.appendChild(t); }
+    d.style.display = 'block';
+    var x = e.clientX + 14, y = e.clientY + 14, w = d.offsetWidth, h = d.offsetHeight;
+    if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14;
+    d.style.left = Math.max(8, x) + 'px'; d.style.top = Math.max(8, y) + 'px';
+  }
+  function esconderDica() { $('dica').style.display = 'none'; }
+  document.addEventListener('scroll', esconderDica, true);
+
+  /* ---------- tabela loja × canal ---------- */
+  function desenharTabela() {
+    var hoje = s2d(st.dados.hoje), s0 = segunda(hoje), m0 = new Date(hoje.getFullYear(), hoje.getMonth(), 1), a0 = new Date(hoje.getFullYear(), 0, 1);
+    var aY = new Date(hoje.getFullYear() - 1, 0, 1), aYfim = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
+    var mA = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), mAfim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+    var cols = [
+      ['Semana', s0, hoje], ['Mês', m0, hoje], ['Mês passado', mA, mAfim], ['Ano', a0, hoje], ['Ano passado*', aY, aYfim]
+    ];
+    var guardaLoja = st.loja, guardaCanal = st.canal;
+    function valor(loja, canal, ini, fim) { st.loja = loja; st.canal = canal; var v = intervalo(ini, fim); st.loja = guardaLoja; st.canal = guardaCanal; return v; }
+    var t = $('tabela'); t.innerHTML = '';
+    var cab = el('tr'); cab.appendChild(el('th', null, '')); cols.forEach(function (c) { cab.appendChild(el('th', null, c[0])); }); t.appendChild(cab);
+    var lojas = (st.dados.lojas || []).filter(function (l) { return (guardaLoja === 'todas' || l.codigo === guardaLoja) && st.dados.serie.some(function (s) { return s.loja === l.codigo; }); });
+    var canais = CANAIS.filter(function (c) { return guardaCanal === 'todos' || c === guardaCanal; });
+    function linha(nome, cls, loja, canal) {
+      var tr = el('tr', cls); tr.appendChild(el('td', null, nome));
+      var vals = cols.map(function (c) { return valor(loja, canal, c[1], c[2]); });
+      vals.forEach(function (v, i) {
+        var td = el('td', null, fmt(v));
+        if (i === 3) { var x = variacao(v, vals[4]); if (vals[4]) td.appendChild(el('span', 'var ' + x.cls, x.txt)); }
+        tr.appendChild(td);
+      });
+      if (vals.some(Boolean) || cls) t.appendChild(tr);
+    }
+    lojas.forEach(function (l) {
+      linha(l.nome, 'loja', l.codigo, guardaCanal);
+      if (guardaCanal === 'todos') canais.forEach(function (c) { linha('   ' + c, '', l.codigo, c); });
+    });
+    if (lojas.length > 1) linha('Total', 'total', 'todas', guardaCanal);
+    var nota = el('caption'); nota.style.captionSide = 'bottom'; nota.style.textAlign = 'left'; nota.className = 'nota';
+    nota.textContent = '* Ano passado até a mesma data de hoje. A variação ao lado de "Ano" compara com ele.';
+    t.appendChild(nota);
+  }
+
+  /* ---------- picos ---------- */
+  function desenharPicos() {
+    var hoje = s2d(st.dados.hoje), ini = soma(hoje, -364), somaDia = [0, 0, 0, 0, 0, 0, 0], qtd = [0, 0, 0, 0, 0, 0, 0];
+    for (var d = new Date(ini); d <= hoje; d = soma(d, 1)) { var v = doDia(d2s(d)); if (v > 0) { somaDia[d.getDay()] += v; qtd[d.getDay()]++; } }
+    var ordem = [1, 2, 3, 4, 5, 6, 0], medias = ordem.map(function (w) { return qtd[w] ? somaDia[w] / qtd[w] : 0; });
+    var max = Math.max.apply(null, medias.concat([1])), W = 500, H = 200, mB = 22, mT = 18, bw = W / 7, larg = bw * 0.6;
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Média de pedidos por dia da semana">';
+    ordem.forEach(function (w, i) {
+      var hh = medias[i] / max * (H - mB - mT), x = i * bw + (bw - larg) / 2, y = H - mB - hh;
+      svg += caminho(x, y, larg, hh, 4, 'var(--c-flex)');
+      svg += '<text x="' + (i * bw + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle" style="fill:var(--txt);font-weight:700">' + fmt(medias[i]) + '</text>';
+      svg += '<text x="' + (i * bw + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + DIAS_SEM[w] + '</text>';
+    });
+    $('gSemana').innerHTML = svg + '</svg>';
+
+    var dias = st.dados.lista.map(function (s) { return [s, doDia(s)]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10);
+    var t = $('topDias'); t.innerHTML = '';
+    var cab = el('tr'); cab.appendChild(el('th', null, 'Dia')); cab.appendChild(el('th', null, 'Pedidos')); t.appendChild(cab);
+    dias.forEach(function (x) { var dt = s2d(x[0]), tr = el('tr'); tr.appendChild(el('td', null, DIAS_SEM[dt.getDay()] + ' ' + br(x[0]) + '/' + dt.getFullYear())); tr.appendChild(el('td', null, fmt(x[1]))); t.appendChild(tr); });
+
+    // Mapa de calor dia da semana × hora (só leituras com hora — as feitas pelo app; não respeita os filtros)
+    var hs = st.dados.horas, dch = st.dados.diasComHora, box = $('gHoras');
+    var total = hs.reduce(function (a, b) { return a + b; }, 0);
+    if (!total) { box.innerHTML = ''; $('notaHoras').textContent = 'Ainda não há bipagens com horário. Essa visão começa a encher com o uso do app.'; return; }
+    var h0 = 24, h1 = 0;
+    for (var i = 0; i < 168; i++) if (hs[i]) { h0 = Math.min(h0, i % 24); h1 = Math.max(h1, i % 24); }
+    var cw = 34, chh = 26, mE = 40, mT2 = 18, colunas = h1 - h0 + 1, W2 = mE + colunas * cw, H2 = mT2 + 7 * chh;
+    var mx = 0, med = function (w, h) { return dch[w] ? hs[w * 24 + h] / dch[w] : 0; };
+    ordem.forEach(function (w) { for (var h = h0; h <= h1; h++) mx = Math.max(mx, med(w, h)); });
+    var s2 = '<svg viewBox="0 0 ' + W2 + ' ' + H2 + '" style="max-width:' + (W2 * 1.2) + 'px" role="img" aria-label="Bipagens por dia da semana e hora">';
+    for (var h = h0; h <= h1; h++) s2 += '<text x="' + (mE + (h - h0) * cw + cw / 2) + '" y="12" text-anchor="middle">' + h + 'h</text>';
+    ordem.forEach(function (w, r) {
+      s2 += '<text x="' + (mE - 6) + '" y="' + (mT2 + r * chh + chh / 2 + 4) + '" text-anchor="end">' + DIAS_SEM[w] + '</text>';
+      for (var h = h0; h <= h1; h++) {
+        var v = med(w, h), a = mx ? v / mx : 0;
+        s2 += '<rect class="cel" data-t="' + DIAS_SEM[w] + ' ' + h + 'h" data-v="' + v.toFixed(1) + '" x="' + (mE + (h - h0) * cw + 1) + '" y="' + (mT2 + r * chh + 1) + '" width="' + (cw - 2) + '" height="' + (chh - 2) + '" rx="3" fill="' + (v ? 'rgba(57,135,229,' + (0.12 + 0.88 * a).toFixed(2) + ')' : 'var(--bg)') + '"/>';
+      }
+    });
+    box.innerHTML = s2 + '</svg>';
+    [].forEach.call(box.querySelectorAll('.cel'), function (c) {
+      c.addEventListener('mousemove', function (e) { mostrarDica(e, c.dataset.t, [['Média de bipagens', +c.dataset.v, 'rgba(57,135,229,1)']], null); });
+      c.addEventListener('mouseleave', esconderDica);
+    });
+    $('notaHoras').textContent = 'Média de bipagens por hora em cada dia da semana, desde ' + br(st.dados.inicioHoras) + '/' + st.dados.inicioHoras.slice(0, 4) + ' (o histórico antigo não tem horário). Mostra as duas lojas e todos os canais.';
+  }
+
+  function desenhar() {
+    if (!st.dados) return;
+    $('gerado').textContent = 'Dados de ' + st.dados.gerado;
+    $('carregando').style.display = 'none'; $('conteudo').style.display = '';
+    desenharFiltros(); desenharKpis(); desenharGrafico(); desenharTabela(); desenharPicos();
+  }
+
+  var tRes; addEventListener('resize', function () { clearTimeout(tRes); tRes = setTimeout(function () { if (st.dados) desenharGrafico(); }, 200); });
+  carregar(false);
+})();
+</script>
+</body>
+</html>
