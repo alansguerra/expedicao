@@ -123,6 +123,10 @@
   .cod .valor.vazio-cod { color: var(--sub); font: 500 13px/1.3 system-ui, sans-serif; margin: 6px 0 8px; }
   .cod input { padding: 8px; font: 700 18px ui-monospace, monospace; margin: 4px 0 6px; }
   .cod .btn.sec { width: 100%; margin: 0; padding: 9px; font-size: 14px; }
+  .cod .cod-rot { display: block; font-size: 12px; color: var(--sub); margin-top: 6px; }
+  .cod input.hora { font: 700 20px system-ui, sans-serif; }
+  .cod .cod-corte { font-size: 13px; color: var(--sub); }
+  .cod.sem-hora { border-color: var(--pend); } .cod.sem-hora .cod-corte { color: #ffd66b; font-weight: 700; }
   .cod .btn.sec.copiado { background: #123b25; border-color: var(--ok); color: #8be0ad; }
 
   /* Fechamento por canal, lojas lado a lado */
@@ -155,6 +159,11 @@
   .mini .tog { padding: 7px 8px; font-size: 12px; }
   .mini.ausente { display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 13px; padding: 12px; }
   .btn.addfull { width: auto; margin: 0 12px 10px; padding: 10px 14px; font-size: 14px; }
+  /* Computador */
+  body.pc .camera, body.pc #btnFoto, body.pc #btnLeitor { display: none; }
+  body.pc #campoLeitor { display: block; font-size: 20px; padding: 16px; border: 3px solid var(--cor-loja, var(--acento)); }
+  body.pc #erro .toque::after { content: ' (ou tecle Esc)'; }
+  body.pc #telaFech { max-width: 900px; }
   /* Resumo do fechamento */
   #resumo { margin: 10px 12px 4px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); }
   .rs-topo { display: flex; align-items: baseline; gap: 8px; }
@@ -226,7 +235,7 @@
     <button class="btn sec" id="btnDesfazer">Desfazer</button>
   </div>
   <input id="foto" type="file" accept="image/*" capture="environment">
-  <input id="campoLeitor" placeholder="Leia ou digite e tecle Enter" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <input id="campoLeitor" placeholder="Bipe com o leitor ou digite e tecle Enter" autocomplete="off" autocapitalize="off" spellcheck="false">
   <div class="fila" id="fila"></div>
   <ul class="lista" id="lista"></ul>
   <div class="rodape"><span class="mk" id="rMk"></span><img id="rLogo" alt=""></div>
@@ -294,15 +303,15 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     mostrar('telaSetup');
     // Mostra na hora o que o celular já guardou; a planilha atualiza em seguida.
     if (!st.setup) { try { st.setup = JSON.parse(ler('setup', 'null')); } catch (e) { st.setup = null; } }
-    if (st.setup) { montarSetup(); desenharCodigos($('codigosInicio'), st.setup.lojas, true); }
+    if (st.setup) { montarSetup(); desenharCodigos($('codigosInicio'), st.setup.lojas); }
     $('avisoSetup').textContent = st.setup ? 'Atualizando…' : 'Carregando…';
     api('setup').then(function (r) {
       if (!r.ok) { $('avisoSetup').textContent = r.erro || 'Erro ao carregar.'; return; }
       st.setup = r;
-      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores }));
-      if (r.codigos) { st.codigos = r.codigos; st.codigosData = r.data; salvar('codigos', JSON.stringify({ data: r.data, codigos: r.codigos })); }
+      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores, antecedencia: r.antecedencia }));
+      st.codigos = r.codigos || {}; st.horarios = r.horarios || {}; st.codigosData = r.data; guardarDia();
       montarSetup();
-      desenharCodigos($('codigosInicio'), r.lojas, true);
+      desenharCodigos($('codigosInicio'), r.lojas);
     }).catch(function (e) {
       if (String(e.message) !== 'PIN') $('avisoSetup').textContent = 'Sem conexão com a planilha. Tente de novo. (' + e.message + ')';
     });
@@ -374,6 +383,20 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   function somPendente() { bip(700, 0.07); bip(700, 0.07, 'sine', 0.12); }
   function piscar(cor) { var f = $('flash'); f.style.background = cor; f.style.opacity = '.55'; setTimeout(function () { f.style.opacity = '0'; }, 220); }
 
+  /* ---------- computador: usa o leitor (pistola) em vez da câmera ---------- */
+  var ehPC = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (ehPC) document.body.classList.add('pc');
+  function focarLeitor() {
+    if (!ehPC || !$('leitura').classList.contains('ativa') || $('erro').classList.contains('ativo')) return;
+    var f = document.activeElement;
+    if (f && f !== $('campoLeitor') && (f.tagName === 'INPUT' || f.tagName === 'TEXTAREA')) return;
+    $('campoLeitor').focus();
+  }
+  document.addEventListener('click', function () { setTimeout(focarLeitor, 0); });
+  document.addEventListener('keydown', function (e) {
+    if ($('erro').classList.contains('ativo') && (e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); $('erro').onclick(); }
+  });
+
   /* ---------- câmera ---------- */
   async function criarDetector() {
     if (st.detector) return st.detector;
@@ -385,6 +408,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   }
 
   async function iniciarCamera() {
+    if (ehPC) { $('campoLeitor').style.display = 'block'; focarLeitor(); return; }
     $('camMsg').textContent = 'Abrindo câmera…';
     try {
       if (!(await criarDetector())) { $('camMsg').textContent = 'Este navegador não lê códigos. Use o Chrome atualizado.'; return; }
@@ -461,6 +485,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   }
   $('erro').onclick = function () {
     $('erro').classList.remove('ativo');
+    setTimeout(focarLeitor, 0);
     st.travado = false; st.pausaAte = Date.now() + 1200; st.ultimoEm = Date.now();
   };
 
@@ -561,7 +586,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
   }
   (function () { // códigos guardados no celular aparecem na hora, antes da resposta da planilha
-    try { var c = JSON.parse(ler('codigos', '{}')); if (c.data === hojeLocal()) { st.codigos = c.codigos || {}; st.codigosData = c.data; } } catch (e) {}
+    try { var c = JSON.parse(ler('codigos', '{}')); if (c.data === hojeLocal()) { st.codigos = c.codigos || {}; st.horarios = c.horarios || {}; st.codigosData = c.data; } } catch (e) {}
   })();
 
   function copiar(texto, botao) {
@@ -574,38 +599,57 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(t);
   }
 
-  /** Um quadro por loja com o código do dia. editavel=true (fechamento) mostra o campo para digitar. */
-  function desenharCodigos(box, lojas, editavel) {
+  function guardarDia() { salvar('codigos', JSON.stringify({ data: st.codigosData, codigos: st.codigos, horarios: st.horarios || {} })); }
+  /** Tipo de envio do Meli de uma loja ('Postagem' ou 'Coleta'), vindo da aba Canais. */
+  function tipoMeli(loja) {
+    var c = ((st.setup && st.setup.canais) || []).filter(function (x) { return x.loja === loja && ehMeli(x.canal); })[0];
+    return (c && c.tipoEnvio) || 'Coleta';
+  }
+  function rotuloMax(tipo) { return /postagem/i.test(tipo || '') ? 'Postagem máx.' : 'Coleta máx.'; }
+
+  /** Tela inicial: um quadro por loja com o código do dia e o horário máximo de hoje do Meli. */
+  function desenharCodigos(box, lojas) {
     box.innerHTML = '';
     if (!lojas || !lojas.length) return;
-    var h = el('h2', null, 'Códigos do dia · Mercado Livre');
-    if (editavel) h.style.margin = '6px 0 8px';
-    box.appendChild(h);
+    box.appendChild(el('h2', null, 'Hoje no Mercado Livre'));
     var grade = el('div', 'cods');
-    var codigos = (st.codigosData === hojeLocal() && st.codigos) || {};
+    var hoje = st.codigosData === hojeLocal();
+    var codigos = (hoje && st.codigos) || {}, horarios = (hoje && st.horarios) || {};
+    var antec = (st.setup && st.setup.antecedencia) || '02:58';
     lojas.forEach(function (l) {
       var q = el('div', 'cod'); q.style.setProperty('--cor', l.cor || '#3b82f6');
       q.appendChild(el('small', null, l.nome));
-      var valor = codigos[l.codigo] || '';
-      if (editavel) {
-        var i = el('input'); i.value = valor; i.placeholder = 'digite o código'; i.autocomplete = 'off'; i.autocapitalize = 'characters';
-        i.onchange = function () {
-          var v = this.value.trim();
-          st.codigos[l.codigo] = v; st.codigosData = hojeLocal();
-          salvar('codigos', JSON.stringify({ data: st.codigosData, codigos: st.codigos }));
-          api('salvarCodigo', { loja: l.codigo, codigo: v }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
-            .catch(function () { alert('Sem conexão: o código não foi salvo na planilha. Tente de novo.'); });
-        };
-        q.appendChild(i);
-      } else {
-        q.appendChild(el('div', 'valor' + (valor ? '' : ' vazio-cod'), valor || 'Ainda não informado.'));
-      }
-      var b = el('button', 'btn sec', 'Copiar');
-      b.onclick = function () {
-        var v = editavel ? q.querySelector('input').value.trim() : (st.codigos[l.codigo] || '');
-        if (v) copiar(v, b);
+
+      q.appendChild(el('label', 'cod-rot', 'Código do dia'));
+      var i = el('input'); i.value = codigos[l.codigo] || ''; i.placeholder = 'código'; i.autocomplete = 'off'; i.autocapitalize = 'characters';
+      i.onchange = function () {
+        var v = this.value.trim();
+        st.codigos[l.codigo] = v; st.codigosData = hojeLocal(); guardarDia();
+        api('salvarCodigo', { loja: l.codigo, codigo: v }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
+          .catch(function () { alert('Sem conexão: o código não foi salvo na planilha. Tente de novo.'); });
       };
-      if (editavel || valor) q.appendChild(b);
+      q.appendChild(i);
+      var b = el('button', 'btn sec', 'Copiar');
+      b.onclick = function () { var v = i.value.trim(); if (v) copiar(v, b); };
+      q.appendChild(b);
+
+      q.appendChild(el('label', 'cod-rot', rotuloMax(tipoMeli(l.codigo)) + ' hoje'));
+      var t = el('input'); t.type = 'time'; t.className = 'hora'; t.value = horarios[l.codigo] || '';
+      var corte = el('div', 'cod-corte');
+      function mostrarCorte() {
+        var m = emMin(t.value);
+        corte.textContent = m == null ? '⚠️ Preencha o horário de hoje' : 'Corte às ' + hhmm(m - emMin(antec));
+        q.classList.toggle('sem-hora', m == null);
+      }
+      t.onchange = function () {
+        var v = this.value;
+        st.horarios = st.horarios || {}; st.horarios[l.codigo] = v; st.codigosData = hojeLocal(); guardarDia();
+        if (fech && fech.data === hojeLocal()) fech.lojas.forEach(function (x) { if (x.codigo === l.codigo) x.canais.forEach(function (c) { if (ehMeli(c.canal)) c.coletaMaxDia = v; }); });
+        mostrarCorte();
+        api('salvarHorario', { loja: l.codigo, horario: v }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
+          .catch(function () { alert('Sem conexão: o horário não foi salvo na planilha. Tente de novo.'); });
+      };
+      q.appendChild(t); q.appendChild(corte); mostrarCorte();
       grade.appendChild(q);
     });
     box.appendChild(grade);
@@ -676,12 +720,12 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     return b;
   }
 
-  function salvarCanal(loja, c) {
+  function salvarCanal(loja, c, comHorario) {
     desenharFechamento();
-    api('salvarFechamento', {
-      loja: loja.codigo, canal: c.canal, aEnviar: c.aEnviar, coletaMaxDia: c.coletaMaxDia || '',
-      gaiola: c.gaiola, veiculo: c.veiculo, coletado: c.coletado, aCaminho: c.aCaminho, operador: st.operador
-    }).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
+    var d = { loja: loja.codigo, canal: c.canal, aEnviar: c.aEnviar,
+      gaiola: c.gaiola, veiculo: c.veiculo, coletado: c.coletado, aCaminho: c.aCaminho, operador: st.operador };
+    if (comHorario) d.coletaMaxDia = c.coletaMaxDia || '';
+    api('salvarFechamento', d).then(function (r) { if (!r.ok) alert(r.erro || 'Não salvou.'); })
       .catch(function () { alert('Sem conexão: a alteração não foi salva. Tente de novo.'); });
   }
 
@@ -729,7 +773,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
           if (!r.fim) {
             fim = false;
             var h = horariosDoCanal(l, c), alvo = agoraMin() <= emMin(h.corte) ? h.corte : h.coleta, m = emMin(alvo);
-            if (m != null && (!prox || m < prox.m)) prox = { m: m, txt: nome + ' ' + l.nome, rot: alvo === h.corte ? 'corte' : 'coleta', hora: alvo };
+            if (m != null && (!prox || m < prox.m)) prox = { m: m, txt: nome + ' ' + l.nome, rot: alvo === h.corte ? 'corte' : (/postagem/i.test(c.tipoEnvio) ? 'postagem' : 'coleta'), hora: alvo };
           }
         }
         var td = el('td', 'rs-cel ' + r.cls); td.appendChild(el('b', null, r.big)); if (r.sub) td.appendChild(el('small', null, r.sub));
@@ -790,23 +834,16 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     nums.appendChild(d1); nums.appendChild(d2); corpo.appendChild(nums);
 
     var diario = ehDiario(c.coletaMax) || ehDiario(c.corte);
-    if (diario && (ehMeli(c.canal) || !temMeli)) {
-      var hd = el('div', 'hora-dia', 'Coleta máx. hoje');
-      var t = el('input'); t.type = 'time'; t.value = c.coletaMaxDia || '';
-      t.onchange = function () { c.coletaMaxDia = this.value; salvarCanal(loja, c); };
-      hd.appendChild(t); corpo.appendChild(hd);
-    }
-
     var h = horariosDoCanal(loja, c);
     var horas = el('div', 'horas');
     if (h.corte || h.coleta) {
       horas.appendChild(document.createTextNode('Corte ')); horas.appendChild(el('b', null, h.corte || '–'));
-      horas.appendChild(document.createTextNode(' · Coleta ')); horas.appendChild(el('b', null, h.coleta || '–'));
+      horas.appendChild(document.createTextNode(/postagem/i.test(c.tipoEnvio) ? ' · Postagem ' : ' · Coleta ')); horas.appendChild(el('b', null, h.coleta || '–'));
       var semAlerta = c.coletado || s.cls === 'st-zero';
       var cd = contagemRegressiva(semAlerta ? '' : (agoraMin() <= emMin(h.corte) ? h.corte : h.coleta), false);
       if (cd && cd.txt) { horas.appendChild(el('br')); horas.appendChild(el('span', 'cd ' + cd.cls, cd.txt)); }
     } else if (diario) {
-      horas.textContent = 'Informe a coleta máx. do Meli.';
+      horas.textContent = 'Informe o horário máx. do Meli na tela inicial.';
     }
     corpo.appendChild(horas);
 
@@ -824,8 +861,9 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (!fech) return;
     $('fData').textContent = 'Fechamento · ' + fech.data;
     salvar('fech', JSON.stringify(fech));
-    st.codigos = fech.codigos || {}; st.codigosData = fech.data;
-    salvar('codigos', JSON.stringify({ data: fech.data, codigos: st.codigos }));
+    st.codigos = fech.codigos || {}; st.codigosData = fech.data; st.horarios = {};
+    fech.lojas.forEach(function (l) { l.canais.forEach(function (c) { if (ehMeli(c.canal) && c.coletaMaxDia) st.horarios[l.codigo] = c.coletaMaxDia; }); });
+    guardarDia();
     desenharResumo();
     var corpo = $('fechCorpo'); corpo.innerHTML = '';
 
