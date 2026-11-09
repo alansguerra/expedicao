@@ -21,6 +21,7 @@
   .grade { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .op { padding: 18px 12px; border-radius: 12px; border: 2px solid var(--borda); background: var(--card);
     color: var(--txt); font-size: 17px; font-weight: 600; text-align: center; }
+  .sons .op { padding: 10px 8px; font-size: 14px; }
   .op.sel { border-color: var(--acento); background: #1c2a44; }
   .btn { width: 100%; padding: 18px; border: 0; border-radius: 12px; font-size: 18px; font-weight: 700;
     background: var(--acento); color: #fff; margin-top: 24px; }
@@ -221,6 +222,8 @@
   <button class="btn" id="btnComecar" disabled>Começar a bipar</button>
   <button class="btn sec" id="btnIrFech" style="margin-top:12px" disabled>Fechamento do dia</button>
   <div class="aviso" id="avisoSetup">Carregando…</div>
+  <h2>Som do acerto <small style="font-weight:400;color:var(--sub)">· toque para ouvir</small></h2>
+  <div class="grade sons" id="gSom"></div>
 </section>
 
 <section id="telaFech" class="tela">
@@ -337,7 +340,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     api('setup').then(function (r) {
       if (!r.ok) { $('avisoSetup').textContent = r.erro || 'Erro ao carregar.'; return; }
       st.setup = r;
-      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores, antecedencia: r.antecedencia, antecedenciaColeta: r.antecedenciaColeta }));
+      salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, vendedores: r.vendedores, operadores: r.operadores, antecedencia: r.antecedencia, antecedenciaColeta: r.antecedenciaColeta }));
       st.codigos = r.codigos || {}; st.horarios = r.horarios || {}; st.codigosData = r.data; guardarDia();
       montarSetup();
       desenharCodigos($('codigosInicio'), r.lojas);
@@ -407,7 +410,25 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + dur + 0.02);
   }
   function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
-  function somOk() { bip(1320, 0.09); vibrar(60); }
+  /* Som do acerto: escolhido na tela inicial, guardado neste aparelho. Ondas "square" soam bem mais alto que "sine". */
+  var SONS = {
+    forte:  { nome: 'Bip forte',  toca: function () { bip(1760, 0.12, 'square', 0, 0.8); } },
+    duplo:  { nome: 'Bip duplo',  toca: function () { bip(1568, 0.08, 'square', 0, 0.7); bip(2093, 0.1, 'square', 0.11, 0.7); } },
+    leitor: { nome: 'Leitor de mercado', toca: function () { bip(2700, 0.11, 'square', 0, 0.75); } },
+    plim:   { nome: 'Plim',       toca: function () { bip(1318, 0.16, 'triangle', 0, 0.95); bip(1976, 0.28, 'triangle', 0.1, 0.95); } },
+    suave:  { nome: 'Suave (antigo)', toca: function () { bip(1320, 0.09, 'sine', 0, 0.35); } }
+  };
+  function somEscolhido() { var k = ler('som', 'forte'); return SONS[k] ? k : 'forte'; }
+  function somOk() { SONS[somEscolhido()].toca(); vibrar(60); }
+  function desenharSons() {
+    var g = $('gSom'); if (!g) return; g.innerHTML = '';
+    Object.keys(SONS).forEach(function (k) {
+      var b = document.createElement('button'); b.className = 'op' + (k === somEscolhido() ? ' sel' : ''); b.textContent = SONS[k].nome;
+      b.onclick = function () { liberarAudio(); salvar('som', k); desenharSons(); setTimeout(function () { SONS[k].toca(); }, 30); };
+      g.appendChild(b);
+    });
+  }
+  desenharSons();
   function somErro() { [0, 0.25, 0.5].forEach(function (a) { bip(180, 0.2, 'square', a, 0.5); }); vibrar([350, 120, 350, 120, 350]); }
   function somPendente() { bip(700, 0.07); bip(700, 0.07, 'sine', 0.12); }
   function piscar(cor) { var f = $('flash'); f.style.background = cor; f.style.opacity = '.55'; setTimeout(function () { f.style.opacity = '0'; }, 220); }
@@ -464,6 +485,100 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     setTimeout(ciclo, 120);
   }
 
+
+  /* ================= Base local de leituras =================
+     O celular guarda as leituras contadas dos últimos dias (de todos os aparelhos) e confere cada
+     bipagem na hora. A planilha continua conferindo por trás e corrige se discordar. */
+  var base = { ultima: 0, hoje: '', linhas: [], ids: {}, porCodigo: {}, cont: {}, pronto: false, buscando: false, cheiaEm: 0 };
+  function chaveCont(loja, canal) { return String(loja).toUpperCase() + '|' + String(canal).toLowerCase(); }
+  function contagemLocal(loja, canal) { return base.cont[chaveCont(loja, canal)] || 0; }
+  function indexar(l) { // l = [id, código, data, hora, operador, loja, canal]
+    if (base.ids[l[0]]) return false;
+    base.ids[l[0]] = l;
+    if (l[1] && !base.porCodigo[l[1]]) base.porCodigo[l[1]] = l;
+    if (l[2] === base.hoje) { var k = chaveCont(l[5], l[6]); base.cont[k] = (base.cont[k] || 0) + 1; }
+    return true;
+  }
+  function removerDaBase(id) {
+    var l = base.ids[id]; if (!l) return;
+    delete base.ids[id];
+    base.linhas = base.linhas.filter(function (x) { return x[0] !== id; });
+    if (base.porCodigo[l[1]] === l) { delete base.porCodigo[l[1]]; base.linhas.some(function (x) { if (x[1] === l[1]) { base.porCodigo[l[1]] = x; return true; } }); }
+    if (l[2] === base.hoje) { var k = chaveCont(l[5], l[6]); base.cont[k] = Math.max(0, (base.cont[k] || 0) - 1); }
+    guardarBase();
+  }
+  function reiniciarBase(hoje) { base.ultima = 0; base.hoje = hoje; base.linhas = []; base.ids = {}; base.porCodigo = {}; base.cont = {}; }
+  function guardarBase() { salvar('base', JSON.stringify({ ultima: base.ultima, hoje: base.hoje, linhas: base.linhas.slice(-4000) })); }
+  (function () { // abre na hora com a base guardada no celular (se for de hoje)
+    try {
+      var b = JSON.parse(ler('base', 'null'));
+      if (b && b.hoje === hojeLocal()) { reiniciarBase(b.hoje); base.ultima = b.ultima; b.linhas.forEach(function (l) { if (indexar(l)) base.linhas.push(l); }); base.pronto = true; }
+    } catch (e) {}
+  })();
+  /** Busca na planilha só o que entrou desde a última vez. A cada 5 min recarrega tudo (pega cancelamentos). */
+  function atualizarBase(cheia) {
+    if (base.buscando || !st.pin) return Promise.resolve();
+    if (Date.now() - base.cheiaEm > 300000) cheia = true;
+    base.buscando = true;
+    return api('recentes', { desde: cheia ? 0 : base.ultima }).then(function (r) {
+      if (!r.ok) return;
+      if (cheia || r.hoje !== base.hoje) {
+        var pend = {}; st.itens.forEach(function (i) { if (i.estado === 'ok' && !i.confirmado) pend[i.id] = 1; });
+        var locais = base.linhas.filter(function (l) { return pend[l[0]] && l[2] === r.hoje; }); // leituras deste celular que a planilha ainda não confirmou
+        reiniciarBase(r.hoje); base.cheiaEm = Date.now();
+        r.itens.forEach(function (l) { if (indexar(l)) base.linhas.push(l); });
+        locais.forEach(function (l) { if (indexar(l)) base.linhas.push(l); });
+      } else r.itens.forEach(function (l) { if (indexar(l)) base.linhas.push(l); });
+      base.ultima = r.ultima; base.pronto = true;
+      guardarBase();
+      baseMudou();
+    }).catch(function () {}).then(function () { base.buscando = false; });
+  }
+  function baseMudou() {
+    if ($('leitura').classList.contains('ativa')) $('nHoje').textContent = contagemLocal(st.loja, st.canal);
+    if ($('telaFech').classList.contains('ativa') && fech) {
+      var foco = document.activeElement;
+      if (!(foco && foco.tagName === 'INPUT' && $('telaFech').contains(foco))) desenharFechamento();
+    }
+  }
+  setInterval(function () {
+    if (document.visibilityState !== 'visible') return;
+    if ($('leitura').classList.contains('ativa') || $('telaFech').classList.contains('ativa')) atualizarBase(false);
+  }, 15000);
+
+  /* Mesmas regras do servidor (analisarCodigo_ / tipoAceito_), para responder na hora. */
+  function analisarCodigo(raw) {
+    var t = String(raw || '').trim();
+    if (!t) return { codigo: '', tipo: 'VAZIO', vendedor: '' };
+    if (t.charAt(0) === '{') { try { var j = JSON.parse(t); if (j && j.id) return { codigo: String(j.id), tipo: 'ML', vendedor: j.sender_id ? String(j.sender_id) : '' }; } catch (e) {} }
+    if (/[\^ˆÇ`{]/.test(t) || /"id"/i.test(t)) {
+      var id = t.match(/(\d{11})/), vend = t.match(/sender_id\D{1,6}(\d{5,})/i);
+      if (id) return { codigo: id[1], tipo: 'ML', vendedor: vend ? vend[1] : '' };
+    }
+    var u = t.toUpperCase().replace(/\s+/g, '');
+    if (/^BR[0-9A-Z]{13}$/.test(u)) return { codigo: u, tipo: 'SHOPEE', vendedor: '' };
+    if (/^\d{11}$/.test(u)) return { codigo: u, tipo: 'ML', vendedor: '' };
+    if (/^[A-Z]{2}\d{9}BR$/.test(u)) return { codigo: u, tipo: 'ML', vendedor: '' };
+    if (u.length < 4) return { codigo: '', tipo: 'VAZIO', vendedor: '' };
+    return { codigo: u, tipo: 'OUTRO', vendedor: '' };
+  }
+  function verificarLocal(raw, loja, canal) {
+    var lido = analisarCodigo(raw), s = st.setup || {};
+    var cfg = (s.canais || []).filter(function (c) { return c.loja === loja && String(c.canal).toLowerCase() === String(canal).toLowerCase(); })[0];
+    var tipo = String((cfg && cfg.tipoCodigo) || 'Livre').toLowerCase();
+    if (!lido.codigo) return { resultado: 'INVALIDO', mensagem: 'Código não reconhecido. Leia de novo.', codigo: '' };
+    if ((tipo.indexOf('mercado livre') >= 0 && lido.tipo !== 'ML') || (tipo.indexOf('shopee') >= 0 && lido.tipo !== 'SHOPEE'))
+      return { resultado: 'CANAL ERRADO', mensagem: 'Esse código não é de ' + canal + '. Confira o canal selecionado.', codigo: lido.codigo };
+    if (lido.vendedor) {
+      var dona = (s.vendedores || []).filter(function (v) { return v.id === lido.vendedor; })[0];
+      if (dona && dona.codigo !== loja) return { resultado: 'OUTRA LOJA', mensagem: 'Este pedido é da ' + dona.nome + ', não da ' + nomeLoja(loja) + '.', codigo: lido.codigo };
+    }
+    var ja = lido.codigo.length >= 6 && base.porCodigo[lido.codigo];
+    if (ja) return { resultado: 'REPETIDO', codigo: lido.codigo,
+      mensagem: 'Já bipado em ' + ja[2] + (ja[3] ? ' às ' + ja[3] : '') + (ja[4] ? ' por ' + ja[4] : '') + ' (' + nomeLoja(ja[5]) + ' / ' + ja[6] + ').' };
+    return { resultado: 'OK', mensagem: '', codigo: lido.codigo };
+  }
+
   /* ---------- leitura ---------- */
   function processar(raw, origem) {
     raw = String(raw || '').trim();
@@ -474,8 +589,20 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     var item = { id: novoId(), raw: raw, loja: st.loja, canal: st.canal, operador: st.operador,
       aparelho: st.aparelho, origem: origem, estado: 'pend', resultado: 'ENVIANDO' };
     st.itens.unshift(item);
+    // Veredito na hora, pela base do celular; a planilha confirma depois (tratarResposta).
+    var v = verificarLocal(raw, item.loja, item.canal);
+    item.local = v.resultado; item.codigo = v.codigo;
+    if (v.resultado === 'OK') {
+      item.estado = 'ok'; item.resultado = 'OK';
+      var l = [item.id, v.codigo, hojeLocal(), hhmm(agoraMin()), item.operador, item.loja, item.canal];
+      if (indexar(l)) { base.linhas.push(l); guardarBase(); }
+      $('nHoje').textContent = contagemLocal(st.loja, st.canal);
+      somOk(); piscar('var(--ok)');
+    } else {
+      item.estado = 'erro'; item.resultado = v.resultado;
+      mostrarErro(v.resultado, v.mensagem, raw);
+    }
     desenharLista();
-    bip(900, 0.03, 'sine', 0, 0.15);
     enviar(item);
   }
 
@@ -497,11 +624,22 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (!r || !r.resultado) { mostrarErro('ERRO', (r && r.erro) || 'Resposta inesperada da planilha.', item.raw); return; }
     st.fila = st.fila.filter(function (f) { return f.id !== item.id; });
     salvar('fila', JSON.stringify(st.fila));
-    item.resultado = r.resultado; item.codigo = r.codigo || '';
+    item.confirmado = true;
     var conta = r.resultado === 'OK' || r.resultado === 'SEM PADRÃO';
+    var localContou = item.local === 'OK';
+    item.resultado = r.resultado; item.codigo = r.codigo || item.codigo || '';
     item.estado = conta ? 'ok' : 'erro';
-    if (item.loja === st.loja && item.canal === st.canal && typeof r.hoje === 'number') $('nHoje').textContent = r.hoje;
-    if (conta) { somOk(); piscar('var(--ok)'); } else { mostrarErro(r.resultado, r.mensagem, item.raw); }
+    if (localContou && !conta) {
+      // A planilha discordou (ex.: outro celular bipou o mesmo pedido segundos antes): avisa agora.
+      removerDaBase(item.id);
+      mostrarErro(r.resultado, r.mensagem, item.raw);
+    } else if (!localContou && conta) {
+      var l = [item.id, item.codigo, hojeLocal(), hhmm(agoraMin()), item.operador, item.loja, item.canal];
+      if (indexar(l)) { base.linhas.push(l); guardarBase(); }
+    } else if (!item.local) { // leitura antiga da fila, feita antes desta versão
+      if (conta) { somOk(); piscar('var(--ok)'); } else mostrarErro(r.resultado, r.mensagem, item.raw);
+    }
+    if ($('leitura').classList.contains('ativa')) $('nHoje').textContent = contagemLocal(st.loja, st.canal);
     desenharLista(); desenharFila();
   }
 
@@ -546,7 +684,8 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
   }
 
   function atualizarContagem() {
-    api('contagem', { loja: st.loja, canal: st.canal }).then(function (r) { if (r.ok) $('nHoje').textContent = r.hoje; }).catch(function () {});
+    if (base.pronto && base.hoje === hojeLocal()) $('nHoje').textContent = contagemLocal(st.loja, st.canal);
+    atualizarBase(false);
   }
 
   /* ---------- botões ---------- */
@@ -604,7 +743,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (!alvo) { alert('Nenhuma leitura deste celular para desfazer.'); return; }
     if (!confirm('Cancelar a leitura ' + (alvo.codigo || alvo.raw) + '?')) return;
     api('desfazer', { id: alvo.id, aparelho: st.aparelho }).then(function (r) {
-      if (r.ok) { alvo.resultado = 'CANCELADO'; desenharLista(); atualizarContagem(); }
+      if (r.ok) { alvo.resultado = 'CANCELADO'; removerDaBase(alvo.id); desenharLista(); atualizarContagem(); }
       else alert(r.mensagem || r.erro);
     }).catch(function () { alert('Sem conexão. Tente de novo.'); });
   };
@@ -768,7 +907,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     if (!st.pin || !st.setup) return;
     api('setup').then(function (r) {
       if (!r.ok) return;
-      st.setup.canais = r.canais; st.setup.antecedencia = r.antecedencia; st.setup.antecedenciaColeta = r.antecedenciaColeta;
+      st.setup.canais = r.canais; st.setup.vendedores = r.vendedores; st.setup.antecedencia = r.antecedencia; st.setup.antecedenciaColeta = r.antecedenciaColeta;
       st.codigos = r.codigos || {}; st.horarios = r.horarios || {}; st.codigosData = r.data; guardarDia();
       // Tela inicial aberta e ninguém digitando: mostra o código/horário novo sem precisar tocar em nada.
       var foco = document.activeElement;
@@ -794,6 +933,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     // Mostra na hora o último fechamento guardado no celular (se for de hoje); a planilha atualiza em seguida.
     if (!fech) { try { var c = JSON.parse(ler('fech', 'null')); if (c && c.data === hojeLocal()) fech = c; } catch (e) {} }
     if (fech) desenharFechamento();
+    atualizarBase(false);
     carregarFechamento();
   }
 
@@ -987,6 +1127,8 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
 
   function desenharFechamento() {
     if (!fech) return;
+    // Bipados vêm da base do celular (atualizada a cada 15 s e a cada leitura): mais nova que a resposta da planilha.
+    if (base.pronto && base.hoje === fech.data) fech.lojas.forEach(function (l) { l.canais.forEach(function (c) { c.bipados = contagemLocal(l.codigo, c.canal); }); });
     $('fData').textContent = 'Fechamento · ' + fech.data;
     salvar('fech', JSON.stringify(fech));
     st.codigos = fech.codigos || {}; st.codigosData = fech.data; st.horarios = {};
