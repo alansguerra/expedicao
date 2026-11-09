@@ -85,13 +85,6 @@
   .fech-topo .info b { display: block; font-size: 17px; }
   .fech-topo .info span { color: var(--sub); font-size: 13px; }
   .fech-topo .btn.sec { width: auto; }
-  .exped { margin: 10px 12px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); }
-  .exped .linha { display: flex; align-items: center; gap: 10px; }
-  .exped .linha div { flex: 1; font-size: 14px; color: var(--sub); }
-  .exped .linha div b { color: var(--txt); font-size: 16px; }
-  .exped .btn { width: auto; margin: 0; padding: 12px 16px; font-size: 15px; }
-  .exped .btn.parar { background: var(--erro); }
-  .exped .outros { margin-top: 8px; font-size: 13px; color: var(--sub); }
   .loja-tit { margin: 18px 12px 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); }
   .card { margin: 0 12px 10px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); border-left-width: 6px; }
   .card.st-ok { border-left-color: var(--ok); }
@@ -124,7 +117,6 @@
 
   /* Códigos do dia (ML) */
   .cods { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #fechCodigos { margin: 10px 12px 0; }
   .cod { border-radius: 12px; background: var(--card); border: 1px solid var(--borda); border-top: 5px solid var(--cor, var(--acento)); padding: 8px 10px; min-width: 0; }
   .cod small { display: block; font-size: 12px; font-weight: 800; color: var(--cor, var(--sub)); text-transform: uppercase; letter-spacing: .04em; }
   .cod .valor { font: 800 22px/1.2 ui-monospace, monospace; letter-spacing: .04em; margin: 4px 0 6px; word-break: break-all; min-height: 26px; }
@@ -163,6 +155,23 @@
   .mini .tog { padding: 7px 8px; font-size: 12px; }
   .mini.ausente { display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 13px; padding: 12px; }
   .btn.addfull { width: auto; margin: 0 12px 10px; padding: 10px 14px; font-size: 14px; }
+  /* Resumo do fechamento */
+  #resumo { margin: 10px 12px 4px; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--borda); }
+  .rs-topo { display: flex; align-items: baseline; gap: 8px; }
+  .rs-topo b { font-size: 20px; }
+  .rs-topo span { flex: 1; text-align: right; font-size: 13px; color: var(--sub); }
+  .rs-barra { height: 8px; border-radius: 4px; background: var(--bg); margin: 8px 0 4px; overflow: hidden; }
+  .rs-barra div { height: 100%; background: var(--ok); }
+  .rs-prox { font-size: 14px; color: var(--sub); margin: 6px 0 10px; }
+  .rs-prox b { color: var(--txt); }
+  .rs-prox .atraso { color: #ff7b7b; font-weight: 700; } .rs-prox .perto { color: #ffd66b; font-weight: 700; }
+  .rs-tab { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .rs-tab th { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 4px 4px 6px; text-align: left; }
+  .rs-tab td { padding: 8px 4px; border-top: 1px solid var(--borda); vertical-align: top; }
+  .rs-tab td:first-child { font-weight: 700; white-space: nowrap; }
+  .rs-tab tr.clic { cursor: pointer; }
+  .rs-cel b { font-size: 15px; } .rs-cel small { display: block; color: var(--sub); font-size: 12px; }
+  .rs-cel.ok b { color: #5fd38d; } .rs-cel.falta b { color: #ff7b7b; } .rs-cel.sobra b, .rs-cel.pend b { color: #ffd66b; } .rs-cel.zero { opacity: .5; }
 </style>
 </head>
 <body>
@@ -195,8 +204,7 @@
     <button class="btn sec" id="btnFechAtualizar">Atualizar</button>
     <button class="btn sec" id="btnFechVoltar">Voltar</button>
   </div>
-  <div id="fechCodigos"></div>
-  <div class="exped" id="exped"></div>
+  <div id="resumo"></div>
   <div id="fechCorpo"></div>
 </section>
 
@@ -286,7 +294,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     mostrar('telaSetup');
     // Mostra na hora o que o celular já guardou; a planilha atualiza em seguida.
     if (!st.setup) { try { st.setup = JSON.parse(ler('setup', 'null')); } catch (e) { st.setup = null; } }
-    if (st.setup) { montarSetup(); desenharCodigos($('codigosInicio'), st.setup.lojas, false); }
+    if (st.setup) { montarSetup(); desenharCodigos($('codigosInicio'), st.setup.lojas, true); }
     $('avisoSetup').textContent = st.setup ? 'Atualizando…' : 'Carregando…';
     api('setup').then(function (r) {
       if (!r.ok) { $('avisoSetup').textContent = r.erro || 'Erro ao carregar.'; return; }
@@ -294,7 +302,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       salvar('setup', JSON.stringify({ ok: true, lojas: r.lojas, canais: r.canais, operadores: r.operadores }));
       if (r.codigos) { st.codigos = r.codigos; st.codigosData = r.data; salvar('codigos', JSON.stringify({ data: r.data, codigos: r.codigos })); }
       montarSetup();
-      desenharCodigos($('codigosInicio'), r.lojas, false);
+      desenharCodigos($('codigosInicio'), r.lojas, true);
     }).catch(function (e) {
       if (String(e.message) !== 'PIN') $('avisoSetup').textContent = 'Sem conexão com a planilha. Tente de novo. (' + e.message + ')';
     });
@@ -590,7 +598,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
         };
         q.appendChild(i);
       } else {
-        q.appendChild(el('div', 'valor' + (valor ? '' : ' vazio-cod'), valor || 'Ainda não informado. Preencha no Fechamento.'));
+        q.appendChild(el('div', 'valor' + (valor ? '' : ' vazio-cod'), valor || 'Ainda não informado.'));
       }
       var b = el('button', 'btn sec', 'Copiar');
       b.onclick = function () {
@@ -686,30 +694,80 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
       .catch(function () { alert('Sem conexão: a alteração não foi salva. Tente de novo.'); });
   }
 
-  function desenharExpediente() {
-    var box = $('exped'); box.innerHTML = '';
-    var meus = (fech.expediente[st.operador] || []);
-    var aberto = meus.filter(function (x) { return x.inicio && !x.fim; })[0];
-    var linha = el('div', 'linha');
-    var info = el('div');
-    var b = el('b', null, st.operador);
-    info.appendChild(b);
-    info.appendChild(document.createTextNode(aberto ? ' · em expediente desde ' + aberto.inicio : ' · fora do expediente'));
-    var btn = el('button', 'btn' + (aberto ? ' parar' : ''), aberto ? 'Encerrar' : 'Iniciar expediente');
-    btn.onclick = function () {
-      btn.disabled = true;
-      api('expediente', { operador: st.operador, tipo: aberto ? 'fim' : 'inicio' }).then(function (r) {
-        if (!r.ok) alert(r.erro);
-        carregarFechamento();
-      }).catch(function () { btn.disabled = false; alert('Sem conexão. Tente de novo.'); });
-    };
-    linha.appendChild(info); linha.appendChild(btn); box.appendChild(linha);
+  /** Resumo no topo do fechamento: uma linha por canal, uma coluna por loja. */
+  function celulaResumo(c) {
+    if (!c) return { cls: 'zero', big: '–', sub: '' };
+    var s = statusCanal(c), saiu = /postagem/i.test(c.tipoEnvio) ? 'postado' : 'coletado';
+    var cont = c.bipados + (String(c.aEnviar) !== '' ? '/' + c.aEnviar : '');
+    if (s.cls === 'st-zero') return { cls: 'zero', big: '—', sub: 'sem pedidos', fim: true };
+    if (String(c.aEnviar) === '') return { cls: 'pend', big: String(c.bipados), sub: 'falta "a enviar"' };
+    if (s.cls === 'st-falta') return { cls: 'falta', big: cont, sub: 'faltam ' + (Number(c.aEnviar) - c.bipados) };
+    if (s.cls === 'st-sobra') return { cls: 'sobra', big: cont, sub: (c.bipados - Number(c.aEnviar)) + ' a mais' };
+    if (c.coletado) return { cls: 'ok', big: '✓ ' + cont, sub: saiu, fim: true };
+    return { cls: 'ok', big: cont, sub: 'conferido, falta sair' };
+  }
 
-    var outros = Object.keys(fech.expediente).filter(function (o) { return o !== st.operador; }).map(function (o) {
-      var ab = fech.expediente[o].filter(function (x) { return x.inicio && !x.fim; })[0];
-      return o + (ab ? ': desde ' + ab.inicio : ': encerrado');
+  function desenharResumo() {
+    var box = $('resumo'); box.innerHTML = '';
+    var lojas = fech.lojas, nomes = [];
+    lojas.forEach(function (l) { l.canais.forEach(function (c) { if (nomes.indexOf(c.canal) < 0) nomes.push(c.canal); }); });
+
+    var tab = el('table', 'rs-tab'), cab = el('tr');
+    cab.appendChild(el('th', null, ''));
+    lojas.forEach(function (l) { var th = el('th', null, l.nome); th.style.color = l.cor || ''; cab.appendChild(th); });
+    tab.appendChild(cab);
+
+    var feitos = 0, total = 0, bip = 0, env = 0, prox = null;
+    nomes.forEach(function (nome) {
+      var tr = el('tr', 'clic'), fim = true;
+      tr.appendChild(el('td', null, nome));
+      lojas.forEach(function (l) {
+        var c = l.canais.filter(function (x) { return x.canal === nome; })[0];
+        var r = celulaResumo(c);
+        if (c) {
+          bip += c.bipados; if (String(c.aEnviar) !== '') env += Number(c.aEnviar);
+          if (!r.fim) {
+            fim = false;
+            var h = horariosDoCanal(l, c), alvo = agoraMin() <= emMin(h.corte) ? h.corte : h.coleta, m = emMin(alvo);
+            if (m != null && (!prox || m < prox.m)) prox = { m: m, txt: nome + ' ' + l.nome, rot: alvo === h.corte ? 'corte' : 'coleta', hora: alvo };
+          }
+        }
+        var td = el('td', 'rs-cel ' + r.cls); td.appendChild(el('b', null, r.big)); if (r.sub) td.appendChild(el('small', null, r.sub));
+        tr.appendChild(td);
+      });
+      total++; if (fim) feitos++;
+      tr.onclick = function () { var a = $('canal-' + nome.toLowerCase()); if (a) a.scrollIntoView({ behavior: 'smooth' }); };
+      tab.appendChild(tr);
     });
-    if (outros.length) box.appendChild(el('div', 'outros', outros.join(' · ')));
+
+    // Full
+    var trF = el('tr', 'clic'); trF.appendChild(el('td', null, 'Full ⚡'));
+    lojas.forEach(function (l) {
+      var n = l.full.length, col = l.full.filter(function (f) { return f.coletado; }).length;
+      var td = el('td', 'rs-cel ' + (!n ? 'zero' : col === n ? 'ok' : 'pend'));
+      td.appendChild(el('b', null, !n ? '—' : (col === n ? '✓ ' : '') + col + '/' + n));
+      td.appendChild(el('small', null, !n ? 'sem coleta' : n === 1 ? 'envio coletado' : 'envios coletados'));
+      trF.appendChild(td);
+      if (n) { total++; if (col === n) feitos++; }
+    });
+    trF.onclick = function () { var a = $('canal-full'); if (a) a.scrollIntoView({ behavior: 'smooth' }); };
+    tab.appendChild(trF);
+
+    var topo = el('div', 'rs-topo');
+    topo.appendChild(el('b', null, feitos === total ? '✅ Expedição concluída' : feitos + ' de ' + total + ' finalizados'));
+    topo.appendChild(el('span', null, bip + ' bipados' + (env ? ' de ' + env : '')));
+    box.appendChild(topo);
+    var barra = el('div', 'rs-barra'), enc = el('div'); enc.style.width = (total ? Math.round(feitos / total * 100) : 0) + '%';
+    barra.appendChild(enc); box.appendChild(barra);
+    if (prox) {
+      var p = el('div', 'rs-prox'), dif = prox.m - agoraMin();
+      p.appendChild(document.createTextNode('Próximo: ' + prox.txt + ' · ' + prox.rot + ' '));
+      p.appendChild(el('b', null, prox.hora));
+      p.appendChild(document.createTextNode(' '));
+      p.appendChild(el('span', dif < 0 ? 'atraso' : dif <= 30 ? 'perto' : '', dif < 0 ? '(passou há ' + fmtDur(-dif) + ')' : '(faltam ' + fmtDur(dif) + ')'));
+      box.appendChild(p);
+    }
+    box.appendChild(tab);
   }
 
   function cartaoCanal(loja, c, temMeli) {
@@ -768,8 +826,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     salvar('fech', JSON.stringify(fech));
     st.codigos = fech.codigos || {}; st.codigosData = fech.data;
     salvar('codigos', JSON.stringify({ data: fech.data, codigos: st.codigos }));
-    desenharCodigos($('fechCodigos'), fech.lojas, true);
-    desenharExpediente();
+    desenharResumo();
     var corpo = $('fechCorpo'); corpo.innerHTML = '';
 
     // Canais na ordem em que aparecem, juntando as lojas
@@ -784,7 +841,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
         bip += c.bipados;
         if (String(c.aEnviar) !== '') { env += Number(c.aEnviar); temEnv = true; }
       });
-      var tit = el('div', 'canal-tit');
+      var tit = el('div', 'canal-tit'); tit.id = 'canal-' + nomeCanal.toLowerCase();
       tit.appendChild(el('b', null, nomeCanal));
       var soma = el('span');
       soma.appendChild(document.createTextNode('Total: '));
@@ -804,7 +861,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
     });
 
     fech.lojas.forEach(function (loja) {
-      var titF = el('div', 'loja-tit', loja.nome + ' · Full ⚡');
+      var titF = el('div', 'loja-tit', loja.nome + ' · Full ⚡'); if (loja === fech.lojas[0]) titF.id = 'canal-full';
       titF.style.color = loja.cor || '';
       corpo.appendChild(titF);
       if (fech.fullErro) corpo.appendChild(el('div', 'vazio', fech.fullErro));
