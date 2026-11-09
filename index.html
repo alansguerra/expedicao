@@ -776,15 +776,15 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
 
     var feitos = 0, total = 0, bip = 0, env = 0, prox = null;
     nomes.forEach(function (nome) {
-      var tr = el('tr', 'clic'), fim = true;
+      var tr = el('tr', 'clic');
       tr.appendChild(el('td', null, nome));
       lojas.forEach(function (l) {
         var c = l.canais.filter(function (x) { return x.canal === nome; })[0];
         var r = celulaResumo(c);
         if (c) {
           bip += c.bipados; if (String(c.aEnviar) !== '') env += Number(c.aEnviar);
+          total++; if (r.fim) feitos++;
           if (!r.fim) {
-            fim = false;
             var h = horariosDoCanal(l, c), alvo = agoraMin() <= emMin(h.corte) ? h.corte : h.coleta, m = emMin(alvo);
             if (m != null && (!prox || m < prox.m)) prox = { m: m, txt: nome + ' ' + l.nome, rot: alvo === h.corte ? 'corte' : (/postagem/i.test(c.tipoEnvio) ? 'postagem' : 'coleta'), hora: alvo };
           }
@@ -792,7 +792,6 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
         var td = el('td', 'rs-cel ' + r.cls); td.appendChild(el('b', null, r.big)); if (r.sub) td.appendChild(el('small', null, r.sub));
         tr.appendChild(td);
       });
-      total++; if (fim) feitos++;
       tr.onclick = function () { var a = $('canal-' + nome.toLowerCase()); if (a) a.scrollIntoView({ behavior: 'smooth' }); };
       tab.appendChild(tr);
     });
