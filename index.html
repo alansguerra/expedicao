@@ -260,11 +260,9 @@
 <div id="ativarAlarme">🔔 Clique aqui para ativar o alarme dos cortes</div>
 <div id="alarme">
   <div class="al-caixa">
-    <div class="al-tit" id="alTit">⏰ Corte</div>
-    <div class="al-sub">Digite quantos pedidos vão sair em cada canal:</div>
+    <div class="al-tit" id="alTit">⏰ Fechamento</div>
     <div id="alLista"></div>
-    <button class="btn" id="alOk">Confirmar</button>
-    <button class="btn sec" id="alDepois">Depois</button>
+    <button class="btn" id="alOk">Desativar alarme</button>
   </div>
 </div>
 
@@ -725,21 +723,19 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
 
   function dispararAlarme(hora, itens) {
     alarme.atual = hora; marcarAlarme(hora);
-    $('alTit').textContent = '⏰ Corte ' + hora;
+    $('alTit').textContent = '⏰ Fechamento ' + hora;
     var lista = $('alLista'); lista.innerHTML = '';
     itens.forEach(function (it) {
       var l = el('div', 'al-linha'), n = el('span', null, it.canal);
-      n.appendChild(el('small', null, nomeLoja(it.loja))); n.style.color = '';
-      var i = el('input'); i.type = 'number'; i.inputMode = 'numeric'; i.min = '0'; i.placeholder = '–';
-      i.dataset.loja = it.loja; i.dataset.canal = it.canal;
+      n.appendChild(el('small', null, nomeLoja(it.loja)));
       l.style.borderLeft = '5px solid ' + corLoja(it.loja); l.style.paddingLeft = '8px';
-      l.appendChild(n); l.appendChild(i); lista.appendChild(l);
+      l.appendChild(n); lista.appendChild(l);
     });
     $('alarme').classList.add('ativo', 'tocando');
     tocarAlarme();
     try {
       if (window.Notification && Notification.permission === 'granted') {
-        var nt = new Notification('⏰ Corte ' + hora, { body: itens.map(function (i) { return i.canal + ' ' + nomeLoja(i.loja); }).join(' · ') + '\nInforme a quantidade de pedidos.', requireInteraction: true, tag: 'corte-' + hora });
+        var nt = new Notification('⏰ Fechamento ' + hora, { body: itens.map(function (i) { return i.canal + ' ' + nomeLoja(i.loja); }).join(' · '), requireInteraction: true, tag: 'corte-' + hora });
         nt.onclick = function () { window.focus(); this.close(); };
       }
     } catch (e) {}
@@ -754,21 +750,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbxzDxrv4UkIfCd0jpylxbOe-B
 
   $('alarme').addEventListener('click', pararSomAlarme);
   $('alarme').addEventListener('keydown', pararSomAlarme);
-  $('alDepois').onclick = function (e) { e.stopPropagation(); fecharAlarme(); };
-  $('alOk').onclick = function (e) {
-    e.stopPropagation();
-    var inputs = [].slice.call($('alLista').querySelectorAll('input')), envios = [];
-    inputs.forEach(function (i) { if (i.value.trim() !== '') envios.push({ loja: i.dataset.loja, canal: i.dataset.canal, aEnviar: i.value.trim(), operador: st.operador || '' }); });
-    if (envios.length < inputs.length && !confirm('Algum canal ficou sem quantidade. Confirmar assim mesmo?')) return;
-    var b = this; b.disabled = true; b.textContent = 'Salvando…';
-    Promise.all(envios.map(function (d) { return api('salvarAEnviar', d); })).then(function (rs) {
-      var erro = rs.filter(function (r) { return !r.ok; })[0];
-      if (erro) alert(erro.erro || 'Não salvou.');
-      fecharAlarme();
-      if ($('telaFech').classList.contains('ativa')) carregarFechamento();
-    }).catch(function () { alert('Sem conexão: não salvou. Tente de novo.'); })
-      .then(function () { b.disabled = false; b.textContent = 'Confirmar'; });
-  };
+  $('alOk').onclick = function (e) { e.stopPropagation(); fecharAlarme(); };
 
   // Som e notificação precisam de um clique na página antes (regra do navegador).
   function precisaAtivar() { return ehPC && (!audio || (window.Notification && Notification.permission === 'default')); }
