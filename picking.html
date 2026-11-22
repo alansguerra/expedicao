@@ -331,6 +331,8 @@ function dataBonita(s){
   s=String(s==null?"":s).trim();
   var m=s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
   if(m) return m[3]+"/"+m[2]+"/"+m[1]+" "+m[4]+":"+m[5];
+  /* datas gravadas como "Thu Nov 19 2026 08:34:00 GMT-0300 (...)" */
+  var g=new Date(s); if(/GMT/.test(s)&&!isNaN(g)){ var p=function(x){return (x<10?"0":"")+x;}; return p(g.getDate())+"/"+p(g.getMonth()+1)+"/"+g.getFullYear()+" "+p(g.getHours())+":"+p(g.getMinutes()); }
   return s;
 }
 
@@ -575,7 +577,7 @@ function render(){
   if(view==="summary"){ renderSummary(); return; }
   $("bar").hidden=false; $("dock").hidden=false;
   $("brand").innerHTML=esc(LOJAS[loja])+'<span class="caret">▾</span>';
-  $("tDate").textContent=S.label||"";
+  $("tDate").textContent=dataBonita(S.label)||"";
   renderCounts(); renderList();
 }
 function renderCounts(){
@@ -774,7 +776,7 @@ function renderLojas(){
       if(!res||!res.session){ el.textContent="sem lista"; return; }
       var t=res.items.length, d=res.items.filter(function(i){return i.done;}).length;
       el.innerHTML=(d<t?'<span class="on">'+d+' de '+t+'</span>':t+' de '+t+' prontos')
-        +'<br>'+esc(res.session.label||"");
+        +'<br>'+esc(dataBonita(res.session.label)||"");
     }).catch(function(){});
   });
 }
@@ -859,7 +861,7 @@ function loadHistory(){
     var h=$("hist"); if(!h||!rows||!rows.length) return;
     var html='<div class="sec-head">Pickings anteriores</div>';
     rows.forEach(function(v){
-      html+='<div class="hist-item"><span class="d">'+esc(dataBonita(v.closedAt)||v.label||"")+'</span>'
+      html+='<div class="hist-item"><span class="d">'+esc(dataBonita(v.closedAt)||dataBonita(v.label)||"")+'</span>'
         +'<span>'+v.total+' itens'+(v.picker?" · "+esc(v.picker):"")+'</span>'
         +(v.miss?'<span class="m">'+v.miss+' com diferença</span>':'')+'</div>';
     });
@@ -887,7 +889,7 @@ function renderSummary(){
   rupturas.forEach(function(it){ pecas+=it.qty-it.picked; });
   var aberto=c.all-c.done;
   var html='<div class="rail" style="margin:20px 0 10px"></div>'
-    +'<h2 class="sum-head" style="margin-top:0">Fechamento · '+esc(LOJAS[loja])+' · '+esc(S.label||"")+'</h2>'
+    +'<h2 class="sum-head" style="margin-top:0">Fechamento · '+esc(LOJAS[loja])+' · '+esc(dataBonita(S.label)||"")+'</h2>'
     +'<div class="stats">'
     +'<div class="stat ok"><b>'+(c.done-c.div)+'</b><small>completos</small></div>'
     +'<div class="stat miss"><b>'+(c.rupt+c.miss)+'</b><small>em ruptura</small></div>'
@@ -958,7 +960,7 @@ function resumoTexto(){
   });
   var pecas=0, totais=0;
   rupturas.forEach(function(it){ pecas+=it.qty-it.picked; if(it.picked===0) totais++; });
-  L.push("Picking "+LOJAS[loja]+" — "+(S.label||""));
+  L.push("Picking "+LOJAS[loja]+" — "+(dataBonita(S.label)||""));
   if(picker) L.push("Separado por: "+picker);
   L.push(c.all+" itens · "+(c.done-c.div)+" completos"
         +(rupturas.length?" · "+rupturas.length+" em ruptura"+(totais?" ("+totais+(totais>1?" totais":" total")+")":""):"")
