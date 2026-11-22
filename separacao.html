@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <base target="_top">
 <meta charset="utf-8">
-<title>Separação</title>
+<title>Picking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -252,7 +252,7 @@ main{padding:10px 0 96px}
 <div class="bar" id="bar" hidden>
   <div class="bar-in">
     <div class="bar-row">
-      <button class="brand" id="brand">Separação<span class="caret">▾</span></button>
+      <button class="brand" id="brand">Picking<span class="caret">▾</span></button>
       <span class="bar-spacer"></span>
       <button class="linkish" id="btnSearch">Buscar</button>
       <button class="linkish" id="btnNew">Nova lista</button>
@@ -282,7 +282,7 @@ main{padding:10px 0 96px}
 <div class="dock" id="dock" hidden>
   <div class="dock-in">
     <button class="btn ghost" id="btnSort">⇅ Rota</button>
-    <button class="btn" id="btnClose">Fechar separação <b id="dockN"></b></button>
+    <button class="btn" id="btnClose">Fechar picking <b id="dockN"></b></button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -530,7 +530,7 @@ function mostrarVazio(){
 function textoVazio(){
   var c=counts();
   if(query) return "Nada encontrado para “"+esc(query)+"”.";
-  if(filter==="pend") return c.all ? "Tudo separado. Toque em <b>Fechar separação</b>." : "Lista vazia.";
+  if(filter==="pend") return c.all ? "Tudo separado. Toque em <b>Fechar picking</b>." : "Lista vazia.";
   if(filter==="div") return "Nenhuma diferença registrada.";
   return "Lista vazia.";
 }
@@ -727,7 +727,7 @@ function buscarConsulta(){
       var dif=(r.separado||0)-(r.pedido||0);
       var cls="cons-row"+(r.aberta?" aberta":(dif!==0?" dif":""));
       var tag;
-      if(r.aberta) tag='<span class="cons-tag aberta">em separação</span>';
+      if(r.aberta) tag='<span class="cons-tag aberta">em picking</span>';
       else if(String(r.situacao).indexOf("ruptura")===0)
         tag='<span class="cons-tag dif">'+esc(r.situacao)+'</span>';
       else if(r.situacao==="nao confirmado") tag='<span class="cons-tag">não confirmado</span>';
@@ -857,7 +857,7 @@ function commitImport(rows,map){
 function loadHistory(){
   call("apiHistorico",loja).then(function(rows){
     var h=$("hist"); if(!h||!rows||!rows.length) return;
-    var html='<div class="sec-head">Separações anteriores</div>';
+    var html='<div class="sec-head">Pickings anteriores</div>';
     rows.forEach(function(v){
       html+='<div class="hist-item"><span class="d">'+esc(dataBonita(v.closedAt)||v.label||"")+'</span>'
         +'<span>'+v.total+' itens'+(v.picker?" · "+esc(v.picker):"")+'</span>'
@@ -912,7 +912,7 @@ function renderSummary(){
     });
   }
   if(!rupturas.length&&!sobras.length&&!obs.length){
-    html+='<div class="empty">Separação limpa — nenhuma ruptura e nenhuma observação.</div>';
+    html+='<div class="empty">Picking limpo — nenhuma ruptura e nenhuma observação.</div>';
   }
   html+='<div class="field" style="margin-top:16px"><label>Quem separou</label>'
     +'<input id="who2" type="text" placeholder="Seu nome" value="'+esc(picker)+'"></div>'
@@ -958,7 +958,7 @@ function resumoTexto(){
   });
   var pecas=0, totais=0;
   rupturas.forEach(function(it){ pecas+=it.qty-it.picked; if(it.picked===0) totais++; });
-  L.push("Separação "+LOJAS[loja]+" — "+(S.label||""));
+  L.push("Picking "+LOJAS[loja]+" — "+(S.label||""));
   if(picker) L.push("Separado por: "+picker);
   L.push(c.all+" itens · "+(c.done-c.div)+" completos"
         +(rupturas.length?" · "+rupturas.length+" em ruptura"+(totais?" ("+totais+(totais>1?" totais":" total")+")":""):"")
